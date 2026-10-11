@@ -1,0 +1,46 @@
+# ==============================================================================
+# DAMMTP2P - Git Ignore Configuration
+# ==============================================================================
+
+# Compiled Bytecode & Build Artifacts
+build/
+dist/
+release/
+archive_legacy_p2p/
+server_data/
+*.class
+sources.txt
+
+# Automated Test Synthetic Outputs
+test_*.bin
+*.bin.tmp
+downloads_bob/
+downloads_charlie/
+
+# Runtime File Transfers (Keep directory structure intact via .gitkeep)
+downloads/*
+!downloads/.gitkeep
+
+# NetBeans IDE Private & Local Machine State
+nbproject/private/
+
+# JetBrains / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+
+# Visual Studio Code
+.vscode/
+
+# Temporary Files, Logs & Crash Dumps
+*.tmp
+*.bak
+*~
+*.log
+hs_err_pid*.log
+replay_pid*.log
+
+# Windows / OS Metadata Files
+Thumbs.db
+Desktop.ini
+.DS_Store
