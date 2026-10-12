@@ -1,0 +1,74 @@
+# Thư mục build và dependencies
+node_modules/
+dist/
+build/
+target/
+bin/
+out/
+*.class
+
+# Các thư mục IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# File cấu hình cá nhân
+.env
+.env.local
+.env.*.local
+
+# File nhị phân dung lượng lớn
+*.jar
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+*.exe
+*.dll
+*.so
+*.dylib
+
+# File log
+*.log
+logs/
+
+# Cache
+.cache/
+*.cache
+
+# Các file tạm
+*.tmp
+*.temp
+*.bak
+
+# File build
+*.o
+*.a
+*.lib
+
+# Node.js
+package-lock.json
+yarn.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.Python
+venv/
+env/
+
+# Java
+*.jar
+*.class
+.gradle/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
