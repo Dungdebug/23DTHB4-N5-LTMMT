@@ -59,6 +59,7 @@ public class ServerFileRelayManager {
         public String getReceiver() { return receiver; }
         public String getFileName() { return fileName; }
         public long getFileSize() { return fileSize; }
+        public long getStartOffset() { return startOffset; }
         public long getTransferredBytes() { return transferredBytes.get(); }
         public double getSpeedBps() { return speedBps; }
         public String getStatus() { return status; }
@@ -137,7 +138,17 @@ public class ServerFileRelayManager {
         if (startOffset < 0L || startOffset > fileSize) {
             throw new IllegalArgumentException("Invalid offset: " + startOffset + " for fileSize: " + fileSize);
         }
-        registeredTransfers.put(transferId, new ActiveTransferInfo(transferId, sender, receiver, fileName, fileSize, startOffset));
+        long effectiveOffset = startOffset;
+        if (effectiveOffset == 0L) {
+            StorageEngine.FileTransferRecord stored = StorageEngine.getInstance().getFileTransfer(transferId);
+            if (stored != null && stored.getOffsetBytes() > 0 && stored.getOffsetBytes() < fileSize) {
+                effectiveOffset = stored.getOffsetBytes();
+                server.logEvent(String.format("[FILE RESUME] Restored stored resume offset %d bytes for '%s'",
+                        effectiveOffset, fileName));
+            }
+        }
+        registeredTransfers.put(transferId, new ActiveTransferInfo(transferId, sender, receiver, fileName, fileSize, effectiveOffset));
+        StorageEngine.getInstance().recordFileTransfer(transferId, fileName, fileSize, null, effectiveOffset, sender, receiver, null, false, "NEGOTIATED");
     }
 
     public void registerGroupTransfer(String transferId, String sender, String roomId, String fileName, long fileSize) {
@@ -373,6 +384,7 @@ public class ServerFileRelayManager {
                             double bps = durationSec > 0 ? (bytesSinceLastSpeedCalc / durationSec) : 0;
                             if (info != null) {
                                 info.speedBps = bps;
+                                StorageEngine.getInstance().updateTransferOffset(transferId, info.getTransferredBytes(), "TRANSFERRING");
                             }
                             bytesSinceLastSpeedCalc = 0;
                             lastSpeedCalcTime = now;
@@ -396,7 +408,10 @@ public class ServerFileRelayManager {
                 try {
                     FileDataHandshake.sendResponse(sender.out, FileDataHandshake.STATUS_REJECTED, receiverErrorMsg.get());
                 } catch (IOException ignored) {}
-                if (info != null) info.status = "Bên nhận ngắt kết nối";
+                if (info != null) {
+                    info.status = "Bên nhận ngắt kết nối";
+                    StorageEngine.getInstance().updateTransferOffset(transferId, info.getTransferredBytes(), "INTERRUPTED");
+                }
                 return;
             }
 
@@ -409,11 +424,15 @@ public class ServerFileRelayManager {
 
                 if (info != null) {
                     info.status = recResp.isComplete() ? "Hoàn tất & Đã băm" : "Lỗi: " + recResp.getMessage();
+                    StorageEngine.getInstance().updateTransferOffset(transferId, info.getTransferredBytes(), recResp.isComplete() ? "COMPLETED" : "FAILED");
                 }
                 server.logEvent(String.format("[FILE RELAY] Transfer '%s' finished: status=0x%02X (%s)",
                         fileDesc, recResp.getStatus(), recResp.getMessage()));
             } catch (Exception e) {
-                if (info != null) info.status = "Bị gián đoạn / Hủy";
+                if (info != null) {
+                    info.status = "Bị gián đoạn / Hủy";
+                    StorageEngine.getInstance().updateTransferOffset(transferId, info.getTransferredBytes(), "INTERRUPTED");
+                }
                 server.logEvent(String.format("[FILE RELAY] Relay response error for '%s': %s", fileDesc, e.getMessage()));
                 try {
                     FileDataHandshake.sendResponse(sender.out, FileDataHandshake.STATUS_REJECTED, "Bên nhận không phản hồi xác thực: " + e.getMessage());
@@ -421,7 +440,10 @@ public class ServerFileRelayManager {
             }
 
         } catch (Exception e) {
-            if (info != null) info.status = "Bị gián đoạn / Hủy";
+            if (info != null) {
+                info.status = "Bị gián đoạn / Hủy";
+                StorageEngine.getInstance().updateTransferOffset(transferId, info.getTransferredBytes(), "INTERRUPTED");
+            }
             server.logEvent(String.format("[FILE RELAY] Error during relay '%s': %s", fileDesc, e.getMessage()));
         } finally {
             try { sender.socket.close(); } catch (IOException ignored) {}
@@ -433,6 +455,11 @@ public class ServerFileRelayManager {
 
     public List<ActiveTransferInfo> getActiveTransfers() {
         return new ArrayList<>(registeredTransfers.values());
+    }
+
+    public ActiveTransferInfo getTransferInfo(String transferId) {
+        if (transferId == null) return null;
+        return registeredTransfers.get(transferId);
     }
 
     public int getActiveTransferCount() {

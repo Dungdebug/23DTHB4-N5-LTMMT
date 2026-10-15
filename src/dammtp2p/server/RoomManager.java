@@ -126,6 +126,14 @@ public class RoomManager {
         // Also notify about existing voice members in this room
         broadcastVoiceMembers(room);
 
+        // Replay recent room messages from StorageEngine to joining member
+        try {
+            List<StorageEngine.ChatMessageRecord> recent = StorageEngine.getInstance().getRecentRoomMessages(room.getRoomId(), 30);
+            for (StorageEngine.ChatMessageRecord r : recent) {
+                session.sendPacket(PacketType.ROOM_CHAT_MESSAGE, r.toJson());
+            }
+        } catch (Exception ignored) {}
+
         return true;
     }
 

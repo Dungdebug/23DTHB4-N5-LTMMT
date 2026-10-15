@@ -1,5 +1,6 @@
 package dammtp2p.server;
 
+import dammtp2p.core.model.ChatMessage;
 import dammtp2p.core.network.HandshakePayload;
 import dammtp2p.core.network.IncompatibleProtocolException;
 import dammtp2p.core.protocol.PacketType;
@@ -382,6 +383,10 @@ public class ServerCore {
             // One-to-many broadcast to room members
             roomManager.broadcastToRoom(roomId, session, PacketType.ROOM_CHAT_MESSAGE, payload);
             logEvent(String.format("[GROUP CHAT] %s in room '%s'", session.getUsername(), roomId));
+            ChatMessage chatMsg = ChatMessage.fromJson(payload);
+            if (chatMsg != null) {
+                StorageEngine.getInstance().recordChatMessage(chatMsg);
+            }
         }
     }
 
@@ -389,6 +394,11 @@ public class ServerCore {
         if (!session.isAuthenticated()) return;
         String receiverName = extractJsonValue(payload, "receiver");
         if (receiverName == null) return;
+
+        ChatMessage chatMsg = ChatMessage.fromJson(payload);
+        if (chatMsg != null) {
+            StorageEngine.getInstance().recordChatMessage(chatMsg);
+        }
 
         ClientSession targetSession = sessionManager.getSessionByUsername(receiverName);
         if (targetSession != null && targetSession.isAuthenticated()) {
@@ -617,6 +627,9 @@ public class ServerCore {
         for (ServerEventListener l : listeners) {
             l.onEvent(msg);
         }
+        try {
+            StorageEngine.getInstance().appendAuditLog("SERVER_EVENT", "SYSTEM", "-", msg);
+        } catch (Exception ignored) {}
     }
 
     public void addListener(ServerEventListener l) {
