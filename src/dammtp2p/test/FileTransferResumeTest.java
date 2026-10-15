@@ -2,11 +2,14 @@ package dammtp2p.test;
 
 import dammtp2p.core.model.FileMetadata;
 import dammtp2p.core.model.TransferState;
+import dammtp2p.core.transfer.DefaultTransferTask;
 import dammtp2p.core.transfer.FileDataHandshake;
 import dammtp2p.core.transfer.FileNegotiationPayload;
 import dammtp2p.core.transfer.FileResumePayload;
 import dammtp2p.core.transfer.HashVerifier;
+import dammtp2p.core.transfer.TransferTask;
 import dammtp2p.util.Constants;
+import dammtp2p.util.FormatUtils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -16,7 +19,8 @@ import java.io.File;
 import java.io.FileOutputStream;
 
 /**
- * Unit tests verifying protocol data structures and resume negotiation for Issue #3.
+ * Unit tests verifying protocol data structures, transfer task lifecycle,
+ * and resume negotiation for Issue #3.
  */
 public class FileTransferResumeTest {
 
@@ -58,6 +62,24 @@ public class FileTransferResumeTest {
             passed++;
         } catch (Throwable t) {
             System.err.println("[FAIL] testHashVerifierStreaming: " + t.getMessage());
+            failed++;
+        }
+
+        try {
+            testDefaultTransferTaskLifecycle();
+            System.out.println("[PASS] testDefaultTransferTaskLifecycle");
+            passed++;
+        } catch (Throwable t) {
+            System.err.println("[FAIL] testDefaultTransferTaskLifecycle: " + t.getMessage());
+            failed++;
+        }
+
+        try {
+            testFormatUtils64BitSupport();
+            System.out.println("[PASS] testFormatUtils64BitSupport");
+            passed++;
+        } catch (Throwable t) {
+            System.err.println("[FAIL] testFormatUtils64BitSupport: " + t.getMessage());
             failed++;
         }
 
@@ -146,6 +168,50 @@ public class FileTransferResumeTest {
         String hash = HashVerifier.calculateSha256(temp);
         if (!HashVerifier.isValidSha256(hash)) {
             throw new AssertionError("Invalid SHA-256 output: " + hash);
+        }
+    }
+
+    private static void testDefaultTransferTaskLifecycle() {
+        long fileSize = 2L * 1024L * 1024L * 1024L; // 2 GiB
+        long offset = 512L * 1024L * 1024L;        // 512 MB
+        FileMetadata meta = new FileMetadata("task-test-01", "backup.tar.gz", fileSize,
+                "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90",
+                offset, "UserA", "UserB", System.currentTimeMillis());
+
+        DefaultTransferTask task = new DefaultTransferTask(meta, TransferState.RESUMING);
+        if (task.getTransferredBytes() != offset) {
+            throw new AssertionError("Initial transferred bytes must equal resume offset");
+        }
+        if (task.getRemainingBytes() != (fileSize - offset)) {
+            throw new AssertionError("Remaining bytes incorrect: " + task.getRemainingBytes());
+        }
+
+        task.pause();
+        if (!task.isPaused()) {
+            throw new AssertionError("Task should be paused");
+        }
+
+        task.resume();
+        if (task.isPaused()) {
+            throw new AssertionError("Task should be unpaused after resume");
+        }
+
+        task.cancel();
+        if (!task.isCancelled() || task.getState() != TransferState.CANCELED) {
+            throw new AssertionError("Task cancellation failed");
+        }
+    }
+
+    private static void testFormatUtils64BitSupport() {
+        long fiveGiB = 5L * 1024L * 1024L * 1024L;
+        String formatted = FormatUtils.formatFileSize(fiveGiB);
+        if (!"5.0 GB".equals(formatted)) {
+            throw new AssertionError("Expected 5.0 GB but got " + formatted);
+        }
+
+        double percent = FormatUtils.calculatePercentage(500, 1000);
+        if (Math.abs(percent - 50.0) > 0.01) {
+            throw new AssertionError("Percentage mismatch: " + percent);
         }
     }
 }
