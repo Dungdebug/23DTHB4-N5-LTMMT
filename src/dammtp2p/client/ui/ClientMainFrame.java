@@ -1182,6 +1182,18 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         handleFriendRemove(username);
     }
 
+    @Override
+    public void onFriendStatusChanged(String target, boolean success, String message) {
+        SwingUtilities.invokeLater(() -> {
+            String me = client != null ? client.getAuthenticatedUser() : initialUsername;
+            sidebar.updateOnlineUsers(currentOnlineUsers);
+            memberListPanel.updateMembers(currentOnlineUsers, me);
+            if (message != null && !message.isEmpty()) {
+                ToastNotification.show(this, message, success ? ToastNotification.Type.SUCCESS : ToastNotification.Type.INFO);
+            }
+        });
+    }
+
     private void handleFriendAdd(String targetUser) {
         String me = client != null ? client.getAuthenticatedUser() : initialUsername;
         if (me == null || targetUser == null) return;
@@ -1190,6 +1202,11 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             ToastNotification.show(this, "Đã kết bạn thành công với @" + targetUser + "!", ToastNotification.Type.SUCCESS);
             sidebar.updateOnlineUsers(currentOnlineUsers);
             memberListPanel.updateMembers(currentOnlineUsers, me);
+            if (client != null && client.isAuthenticated()) {
+                try {
+                    client.requestAddFriend(targetUser);
+                } catch (Exception ignored) {}
+            }
         } else {
             ToastNotification.show(this, "@" + targetUser + " đã có trong danh sách bạn bè!", ToastNotification.Type.WARNING);
         }
@@ -1203,6 +1220,11 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             ToastNotification.show(this, "Đã hủy kết bạn với @" + targetUser + ".", ToastNotification.Type.INFO);
             sidebar.updateOnlineUsers(currentOnlineUsers);
             memberListPanel.updateMembers(currentOnlineUsers, me);
+            if (client != null && client.isAuthenticated()) {
+                try {
+                    client.requestRemoveFriend(targetUser);
+                } catch (Exception ignored) {}
+            }
         }
     }
 

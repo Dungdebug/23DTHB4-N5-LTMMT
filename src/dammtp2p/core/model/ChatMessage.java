@@ -89,6 +89,10 @@ public class ChatMessage implements Serializable {
         return roomId != null && !roomId.isEmpty();
     }
 
+    public boolean isPrivateMessage() {
+        return !isRoomMessage() && receiver != null && !receiver.isEmpty();
+    }
+
     private static final java.util.regex.Pattern ID_PATTERN = java.util.regex.Pattern.compile("\"messageId\"\\s*:\\s*\"([^\"]*)\"");
     private static final java.util.regex.Pattern SENDER_PATTERN = java.util.regex.Pattern.compile("\"sender\"\\s*:\\s*\"([^\"]*)\"");
     private static final java.util.regex.Pattern RECEIVER_PATTERN = java.util.regex.Pattern.compile("\"receiver\"\\s*:\\s*\"([^\"]*)\"");

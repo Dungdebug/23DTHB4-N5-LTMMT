@@ -71,6 +71,7 @@ public class ClientCore {
         default void onVoiceMembersUpdated(String roomId, List<String> members) {}
         default void onUserSpeaking(String username, boolean isSpeaking) {}
         default void onVoiceStateChanged(String roomId, boolean inVoice) {}
+        default void onFriendStatusChanged(String target, boolean success, String message) {}
     }
 
     private final String clientDisplayName;
@@ -349,8 +350,24 @@ public class ClientCore {
             case VOICE_MEMBERS_BROADCAST:
                 handleVoiceMembersBroadcast(payload);
                 break;
+            case FRIEND_ADD_RESP:
+                handleFriendAddResp(payload);
+                break;
             default:
                 break;
+        }
+    }
+
+    private void handleFriendAddResp(String payload) {
+        String target = extractJsonValue(payload, "target");
+        String message = extractJsonValue(payload, "message");
+        String successStr = extractJsonValue(payload, "success");
+        boolean ok = "true".equalsIgnoreCase(successStr);
+        if (ok && target != null && authenticatedUser != null) {
+            dammtp2p.client.FriendsManager.getInstance().addFriend(authenticatedUser, target);
+        }
+        for (ClientListener l : listeners) {
+            l.onFriendStatusChanged(target, ok, message);
         }
     }
 
@@ -519,6 +536,16 @@ public class ClientCore {
         for (ClientListener l : listeners) {
             l.onChatMessage(finalMsg);
         }
+    }
+
+    public void requestAddFriend(String targetUser) throws IOException {
+        if (!authenticated.get()) throw new IOException("Chưa đăng nhập.");
+        sendPacket(PacketType.FRIEND_ADD_REQ, String.format("{\"target\":\"%s\"}", escapeJson(targetUser)));
+    }
+
+    public void requestRemoveFriend(String targetUser) throws IOException {
+        if (!authenticated.get()) throw new IOException("Chưa đăng nhập.");
+        sendPacket(PacketType.FRIEND_REMOVE_REQ, String.format("{\"target\":\"%s\"}", escapeJson(targetUser)));
     }
 
     public void sendPrivateMessage(String targetUser, String text) throws Exception {

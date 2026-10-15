@@ -78,6 +78,19 @@ public enum PacketType {
     /** Server broadcast of user state change (online/offline) */
     USER_STATUS_BROADCAST((byte) 0x46),
 
+    // === Friendship Management (0x48 - 0x4F) ===
+    /** Request to add a friend */
+    FRIEND_ADD_REQ((byte) 0x48),
+
+    /** Response or notification of friend request/add */
+    FRIEND_ADD_RESP((byte) 0x49),
+
+    /** Request to remove a friend */
+    FRIEND_REMOVE_REQ((byte) 0x4A),
+
+    /** Synchronize or broadcast friends list */
+    FRIEND_LIST_SYNC((byte) 0x4B),
+
     // === Rooms & Group Chat (0x50 - 0x5F) ===
     /** Request for list of existing chat rooms */
     ROOM_LIST_REQ((byte) 0x50),

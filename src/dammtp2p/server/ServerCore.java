@@ -206,6 +206,12 @@ public class ServerCore {
                 case HEARTBEAT:
                     session.sendPacket(PacketType.HEARTBEAT_ACK, "{\"status\":\"PONG\"}");
                     break;
+                case FRIEND_ADD_REQ:
+                    handleFriendAddReq(session, payload);
+                    break;
+                case FRIEND_REMOVE_REQ:
+                    handleFriendRemoveReq(session, payload);
+                    break;
                 case DISCONNECT:
                     session.close();
                     break;
@@ -394,6 +400,47 @@ public class ServerCore {
                     escapeJson(receiverName), escapeJson(session.getUsername()));
             session.sendPacket(PacketType.CHAT_MESSAGE, errorJson);
         }
+    }
+
+    private void handleFriendAddReq(ClientSession session, String payload) throws IOException {
+        if (!session.isAuthenticated()) return;
+        String target = extractJsonValue(payload, "target");
+        if (target == null || target.trim().isEmpty()) return;
+        String me = session.getUsername();
+        boolean added = dammtp2p.client.FriendsManager.getInstance().addFriend(me, target);
+        logEvent(String.format("[FRIEND ADD] %s added friend %s (success=%b)", me, target, added));
+
+        String respJson = String.format("{\"success\":%b,\"target\":\"%s\",\"message\":\"%s\"}",
+                added, escapeJson(target), added ? "Đã kết bạn thành công với @" + target : "@" + target + " đã có trong danh sách bạn bè.");
+        session.sendPacket(PacketType.FRIEND_ADD_RESP, respJson);
+
+        ClientSession targetSession = sessionManager.getSessionByUsername(target);
+        if (targetSession != null && targetSession.isAuthenticated()) {
+            String notifyJson = String.format("{\"success\":true,\"target\":\"%s\",\"message\":\"@%s đã trở thành bạn bè với bạn!\"}",
+                    escapeJson(me), escapeJson(me));
+            targetSession.sendPacket(PacketType.FRIEND_ADD_RESP, notifyJson);
+            handleUserListReq(targetSession);
+        }
+        handleUserListReq(session);
+    }
+
+    private void handleFriendRemoveReq(ClientSession session, String payload) throws IOException {
+        if (!session.isAuthenticated()) return;
+        String target = extractJsonValue(payload, "target");
+        if (target == null || target.trim().isEmpty()) return;
+        String me = session.getUsername();
+        boolean removed = dammtp2p.client.FriendsManager.getInstance().removeFriend(me, target);
+        logEvent(String.format("[FRIEND REMOVE] %s removed friend %s", me, target));
+
+        String respJson = String.format("{\"success\":%b,\"target\":\"%s\",\"message\":\"Đã hủy kết bạn với @" + target + ".\"}",
+                removed, escapeJson(target));
+        session.sendPacket(PacketType.FRIEND_ADD_RESP, respJson);
+
+        ClientSession targetSession = sessionManager.getSessionByUsername(target);
+        if (targetSession != null && targetSession.isAuthenticated()) {
+            handleUserListReq(targetSession);
+        }
+        handleUserListReq(session);
     }
 
     private void handleFileTransferRequest(ClientSession session, String payload) throws IOException {
