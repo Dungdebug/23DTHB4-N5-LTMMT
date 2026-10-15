@@ -28,7 +28,7 @@ public class RoomManager {
         public ChatRoom(String roomId, String displayName) {
             this.roomId = roomId;
             this.displayName = displayName;
-            this.roomAesKey = CryptoUtils.generateAes128Key();
+            this.roomAesKey = CryptoUtils.deriveRoomKey(roomId);
         }
 
         public String getRoomId() {

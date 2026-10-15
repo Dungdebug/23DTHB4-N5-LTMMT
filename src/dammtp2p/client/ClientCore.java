@@ -574,7 +574,8 @@ public class ClientCore {
         if (key == null) {
             // Join room to receive key if not yet held
             sendPacket(PacketType.ROOM_JOIN_REQ, String.format("{\"id\":\"%s\"}", escapeJson(roomId)));
-            key = CryptoUtils.generateAes128Key(); // Fallback key
+            key = CryptoUtils.deriveRoomKey(roomId); // Consistent room key
+            roomKeys.put(roomId.toLowerCase(), key);
         }
 
         CryptoUtils.EncryptedPayload enc = CryptoUtils.encryptString(text, key);

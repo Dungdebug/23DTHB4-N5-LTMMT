@@ -446,6 +446,9 @@ public class DAMMTP2P {
                 }
             });
 
+            String testPrivateText = "Xin chào Bob! Tin nhắn bảo mật AES-128 từ Alice.";
+            String testRoomText = "Chào cả nhóm 05 MMT trong phòng chung!";
+
             clientB.addListener(new ClientCore.ClientListener() {
                 @Override public void onConnected(String serverIp, int port) {}
                 @Override public void onDisconnected(String reason) {}
@@ -457,11 +460,15 @@ public class DAMMTP2P {
                 @Override public void onRoomsUpdated(List<String> rooms) {}
                 @Override public void onChatMessage(ChatMessage m) {
                     if (m.isRoomMessage()) {
-                        receivedRoomMsg.set(m.getContent());
-                        roomChatLatch.countDown();
+                        if (testRoomText.equals(m.getContent())) {
+                            receivedRoomMsg.set(m.getContent());
+                            roomChatLatch.countDown();
+                        }
                     } else if ("alice".equalsIgnoreCase(m.getSender())) {
-                        receivedPrivateMsg.set(m.getContent());
-                        privateChatLatch.countDown();
+                        if (testPrivateText.equals(m.getContent())) {
+                            receivedPrivateMsg.set(m.getContent());
+                            privateChatLatch.countDown();
+                        }
                     }
                 }
                 @Override public void onIncomingFileRequest(FileMetadata m) {
@@ -495,7 +502,6 @@ public class DAMMTP2P {
             if (!presenceOk) success.set(false);
 
             // Test Encrypted 1-to-1 Private Chat
-            String testPrivateText = "Xin chào Bob! Tin nhắn bảo mật AES-128 từ Alice.";
             clientA.sendPrivateMessage("bob", testPrivateText);
             boolean privateOk = privateChatLatch.await(3, TimeUnit.SECONDS);
             System.out.printf("[TEST 5/10] 1-to-1 Private Chat with AES-128-GCM: %s (Received: '%s')%n",
@@ -504,7 +510,6 @@ public class DAMMTP2P {
             if (!privateOk || !testPrivateText.equals(receivedPrivateMsg.get())) success.set(false);
 
             // Test Group Chat Room Broadcast
-            String testRoomText = "Chào cả nhóm 05 MMT trong phòng chung!";
             clientA.sendRoomMessage("Lobby", testRoomText);
             boolean roomOk = roomChatLatch.await(3, TimeUnit.SECONDS);
             System.out.printf("[TEST 6/10] Group Chat Broadcast (Room 'Lobby') with AES-128: %s (Received: '%s')%n",

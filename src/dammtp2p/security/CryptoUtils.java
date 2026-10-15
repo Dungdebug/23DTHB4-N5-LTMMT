@@ -75,6 +75,18 @@ public final class CryptoUtils {
         return new SecretKeySpec(keyBytes, "AES");
     }
 
+    public static SecretKey deriveRoomKey(String roomId) {
+        String id = (roomId != null && !roomId.trim().isEmpty()) ? roomId.trim().toLowerCase() : "general";
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            byte[] hash = md.digest(("DAMMTP2P_ROOM_SECRET_SALT_" + id).getBytes(StandardCharsets.UTF_8));
+            byte[] key16 = Arrays.copyOf(hash, AES_KEY_SIZE_BYTES);
+            return new SecretKeySpec(key16, "AES");
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
     public static SecretKey keyFromBytes(byte[] keyBytes) {
         if (keyBytes == null || keyBytes.length != AES_KEY_SIZE_BYTES) {
             throw new IllegalArgumentException("AES key must be exactly 16 bytes (128 bits)");
