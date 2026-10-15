@@ -20,6 +20,11 @@ import java.util.concurrent.atomic.AtomicReference;
 public class FriendsAndPrivateChatTest {
 
     public static void main(String[] args) {
+        boolean ok = runAllTests();
+        System.exit(ok ? 0 : 1);
+    }
+
+    public static boolean runAllTests() {
         System.out.println("==================================================================");
         System.out.println("  DAMMTP2P — PHASE 3: FRIENDS & 1-TO-1 PRIVATE CHAT TEST SUITE");
         System.out.println("==================================================================");
@@ -31,7 +36,7 @@ public class FriendsAndPrivateChatTest {
         boolean allPass = passUnit && passNetwork;
         System.out.println("  PHASE 3 TEST RESULT: " + (allPass ? "ALL TESTS PASSED" : "FAILED"));
         System.out.println("==================================================================");
-        System.exit(allPass ? 0 : 1);
+        return allPass;
     }
 
     private static boolean testFriendsManagerUnit() {

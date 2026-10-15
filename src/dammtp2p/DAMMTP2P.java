@@ -101,10 +101,17 @@ public class DAMMTP2P {
 
         if (isTest) {
             boolean s0 = FileBoundaryTest.runAllBoundaryTests();
-            boolean s1 = runPhase11aSelfTest();
-            boolean s2 = runCentralServerSelfTest();
-            boolean s3 = dammtp2p.util.VoiceAndGroupTransferTest.runAllTests();
-            System.exit((s0 && s1 && s2 && s3) ? 0 : 1);
+            boolean s1 = dammtp2p.test.FileTransferResumeTest.runAllTests();
+            boolean s2 = dammtp2p.util.VoiceAndGroupTransferTest.runAllTests();
+            boolean s3 = dammtp2p.test.FriendsAndPrivateChatTest.runAllTests();
+            boolean s4 = dammtp2p.test.PersistentStorageAndResumeTest.runAllTests();
+            boolean s5 = runPhase11aSelfTest();
+            boolean s6 = runCentralServerSelfTest();
+            boolean allPass = s0 && s1 && s2 && s3 && s4 && s5 && s6;
+            System.out.println("==================================================================");
+            System.out.println("  COMPREHENSIVE AUTOMATED TEST SUITE: " + (allPass ? "100% PASSED" : "FAILED"));
+            System.out.println("==================================================================");
+            System.exit(allPass ? 0 : 1);
             return;
         }
 

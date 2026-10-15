@@ -25,6 +25,13 @@ import java.io.FileOutputStream;
 public class FileTransferResumeTest {
 
     public static void main(String[] args) {
+        boolean ok = runAllTests();
+        if (!ok) {
+            System.exit(1);
+        }
+    }
+
+    public static boolean runAllTests() {
         System.out.println("=== RUNNING ISSUE #3 VERIFICATION SUITE ===");
         int passed = 0;
         int failed = 0;
@@ -84,9 +91,7 @@ public class FileTransferResumeTest {
         }
 
         System.out.println(String.format("\nResult: %d passed, %d failed.", passed, failed));
-        if (failed > 0) {
-            System.exit(1);
-        }
+        return failed == 0;
     }
 
     private static void testFileDataHandshakeSerialization() throws Exception {
