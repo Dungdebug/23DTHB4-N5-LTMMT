@@ -72,6 +72,7 @@ public class ClientCore {
         default void onUserSpeaking(String username, boolean isSpeaking) {}
         default void onVoiceStateChanged(String roomId, boolean inVoice) {}
         default void onFriendStatusChanged(String target, boolean success, String message) {}
+        default void onSystemError(String message) {}
     }
 
     private final String clientDisplayName;
@@ -499,7 +500,15 @@ public class ClientCore {
     }
 
     private void handleChatMessagePacket(String payload) {
-        if (payload == null || payload.contains("\"type\":\"ERROR\"") || payload.contains("\"type\": \"ERROR\"")) {
+        if (payload == null) return;
+        if (payload.contains("\"type\":\"ERROR\"") || payload.contains("\"type\":\"SYSTEM\"")
+                || payload.contains("\"type\": \"ERROR\"") || payload.contains("\"type\": \"SYSTEM\"")) {
+            String msg = extractJsonValue(payload, "message");
+            if (msg != null && !msg.trim().isEmpty()) {
+                for (ClientListener l : listeners) {
+                    l.onSystemError(msg);
+                }
+            }
             return;
         }
         ChatMessage rawMsg = ChatMessage.fromJson(payload);

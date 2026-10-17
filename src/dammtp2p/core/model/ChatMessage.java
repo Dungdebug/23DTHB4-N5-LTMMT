@@ -117,7 +117,8 @@ public class ChatMessage implements Serializable {
     }
 
     public static ChatMessage fromJson(String json) {
-        if (json == null || json.trim().isEmpty() || json.contains("\"type\":\"ERROR\"") || json.contains("\"type\": \"ERROR\"")) {
+        if (json == null || json.trim().isEmpty() || json.contains("\"type\":\"ERROR\"") || json.contains("\"type\": \"ERROR\"")
+                || json.contains("\"type\":\"SYSTEM\"") || json.contains("\"type\": \"SYSTEM\"")) {
             return null;
         }
         try {

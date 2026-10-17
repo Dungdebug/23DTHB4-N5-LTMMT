@@ -947,6 +947,13 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
     }
 
     @Override
+    public void onSystemError(String message) {
+        SwingUtilities.invokeLater(() -> {
+            ToastNotification.show(this, message, ToastNotification.Type.WARNING);
+        });
+    }
+
+    @Override
     public void onChatMessage(ChatMessage message) {
         SwingUtilities.invokeLater(() -> postChatMessageDirectly(message));
     }
