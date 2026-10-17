@@ -944,10 +944,20 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         } else {
             String partner = message.isOutgoing() ? message.getReceiver() : message.getSender();
-            key = "user:" + (partner != null ? partner.toLowerCase() : "unknown");
-            ConversationTimeline t = openOrCreateTimeline(key, partner != null ? partner : "Peer", true);
+            if (partner == null || partner.trim().isEmpty() || "Peer".equalsIgnoreCase(partner) || "unknown".equalsIgnoreCase(partner)) {
+                return;
+            }
+            key = "user:" + partner.toLowerCase();
+            ConversationTimeline t = openOrCreateTimeline(key, partner, true);
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         }
+    }
+
+    @Override
+    public void onSystemError(String message) {
+        SwingUtilities.invokeLater(() -> {
+            ToastNotification.show(this, message, ToastNotification.Type.WARNING);
+        });
     }
 
     @Override
@@ -1184,12 +1194,18 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
 
     private void handleFriendAdd(String targetUser) {
         String me = client != null ? client.getAuthenticatedUser() : initialUsername;
-        if (me == null || targetUser == null) return;
+        if (me == null || targetUser == null || targetUser.trim().isEmpty()) return;
+        targetUser = targetUser.trim();
         boolean added = dammtp2p.client.FriendsManager.getInstance().addFriend(me, targetUser);
         if (added) {
             ToastNotification.show(this, "Đã kết bạn thành công với @" + targetUser + "!", ToastNotification.Type.SUCCESS);
             sidebar.updateOnlineUsers(currentOnlineUsers);
             memberListPanel.updateMembers(currentOnlineUsers, me);
+            try {
+                if (client != null) {
+                    client.requestAddFriend(targetUser);
+                }
+            } catch (Exception ignored) {}
         } else {
             ToastNotification.show(this, "@" + targetUser + " đã có trong danh sách bạn bè!", ToastNotification.Type.WARNING);
         }
@@ -1203,6 +1219,11 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             ToastNotification.show(this, "Đã hủy kết bạn với @" + targetUser + ".", ToastNotification.Type.INFO);
             sidebar.updateOnlineUsers(currentOnlineUsers);
             memberListPanel.updateMembers(currentOnlineUsers, me);
+            try {
+                if (client != null) {
+                    client.requestRemoveFriend(targetUser);
+                }
+            } catch (Exception ignored) {}
         }
     }
 
