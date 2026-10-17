@@ -117,15 +117,21 @@ public class ChatMessage implements Serializable {
     }
 
     public static ChatMessage fromJson(String json) {
-        if (json == null || json.trim().isEmpty()) {
+        if (json == null || json.trim().isEmpty() || json.contains("\"type\":\"ERROR\"") || json.contains("\"type\": \"ERROR\"")) {
             return null;
         }
         try {
             String id = extract(ID_PATTERN, json, UUID.randomUUID().toString());
-            String sender = extract(SENDER_PATTERN, json, "Peer");
+            String sender = extract(SENDER_PATTERN, json, null);
+            if (sender == null || sender.trim().isEmpty() || sender.equalsIgnoreCase("Peer")) {
+                return null;
+            }
             String receiver = extract(RECEIVER_PATTERN, json, null);
             String roomId = extract(ROOM_PATTERN, json, null);
-            String content = extract(CONTENT_PATTERN, json, "");
+            String content = extract(CONTENT_PATTERN, json, null);
+            if (content == null || content.trim().isEmpty()) {
+                return null;
+            }
             long ts = extractLong(TIME_PATTERN, json, System.currentTimeMillis());
             boolean enc = "true".equalsIgnoreCase(extract(ENCRYPTED_PATTERN, json, "false"));
             String iv = extract(IV_PATTERN, json, null);

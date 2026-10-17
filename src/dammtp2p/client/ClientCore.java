@@ -499,8 +499,11 @@ public class ClientCore {
     }
 
     private void handleChatMessagePacket(String payload) {
+        if (payload == null || payload.contains("\"type\":\"ERROR\"") || payload.contains("\"type\": \"ERROR\"")) {
+            return;
+        }
         ChatMessage rawMsg = ChatMessage.fromJson(payload);
-        if (rawMsg == null) return;
+        if (rawMsg == null || rawMsg.getSender() == null || rawMsg.getContent() == null) return;
 
         // Check if an incoming key is attached for 1-to-1 conversation
         String keyB64 = extractJsonValue(payload, "key");

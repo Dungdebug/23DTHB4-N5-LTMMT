@@ -424,15 +424,6 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         btnQuickVoice.setToolTipText("Tham gia kênh âm thanh thời gian thực (RTC)");
         btnQuickVoice.addActionListener(e -> onVoiceRoomSelected("Phòng Thảo Luận 01"));
 
-        btnHeaderTransfers = new JButton("Gửi Tệp", AppIcons.createTransfersIcon(14, ThemeManager.ACCENT_CYAN));
-        btnHeaderTransfers.setFont(ThemeManager.FONT_SMALL_BOLD);
-        btnHeaderTransfers.setForeground(ThemeManager.TEXT_PRIMARY);
-        btnHeaderTransfers.setBackground(ThemeManager.BG_CARD);
-        btnHeaderTransfers.setFocusPainted(false);
-        btnHeaderTransfers.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnHeaderTransfers.setToolTipText("Chọn tệp để gửi vào phòng này");
-        btnHeaderTransfers.addActionListener(e -> chooseLocalFile());
-
         JButton btnMore = new JButton(AppIcons.createMoreDotsIcon(14, ThemeManager.TEXT_MUTED));
         btnMore.setPreferredSize(new Dimension(30, 28));
         btnMore.setBackground(ThemeManager.BG_CARD);
@@ -456,7 +447,6 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         });
 
         headerRight.add(btnQuickVoice);
-        headerRight.add(btnHeaderTransfers);
         headerRight.add(btnMore);
 
         headerBar.add(headerLeft, BorderLayout.WEST);
@@ -937,6 +927,9 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
     }
 
     public void postChatMessageDirectly(ChatMessage message) {
+        if (message == null || message.getContent() == null || message.getContent().trim().isEmpty()) {
+            return;
+        }
         String key;
         if (message.isRoomMessage()) {
             key = "room:" + message.getRoomId().toLowerCase();
@@ -944,8 +937,11 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         } else {
             String partner = message.isOutgoing() ? message.getReceiver() : message.getSender();
-            key = "user:" + (partner != null ? partner.toLowerCase() : "unknown");
-            ConversationTimeline t = openOrCreateTimeline(key, partner != null ? partner : "Peer", true);
+            if (partner == null || partner.trim().isEmpty() || partner.equalsIgnoreCase("Peer") || partner.equalsIgnoreCase("unknown")) {
+                return;
+            }
+            key = "user:" + partner.toLowerCase();
+            ConversationTimeline t = openOrCreateTimeline(key, partner, true);
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         }
     }

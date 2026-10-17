@@ -405,10 +405,8 @@ public class ServerCore {
             targetSession.sendPacket(PacketType.PRIVATE_CHAT_MESSAGE, payload);
             logEvent(String.format("[PRIVATE CHAT] %s -> %s", session.getUsername(), receiverName));
         } else {
-            // Target user is offline
-            String errorJson = String.format("{\"type\":\"ERROR\",\"message\":\"Người dùng '%s' hiện không trực tuyến.\",\"receiver\":\"%s\"}",
-                    escapeJson(receiverName), escapeJson(session.getUsername()));
-            session.sendPacket(PacketType.CHAT_MESSAGE, errorJson);
+            // Target user is offline: message is safely recorded in persistent StorageEngine
+            logEvent(String.format("[PRIVATE CHAT (OFFLINE)] %s -> %s (stored in history)", session.getUsername(), receiverName));
         }
     }
 

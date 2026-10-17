@@ -386,19 +386,17 @@ public class ConversationSidebar extends JPanel {
         header.add(btnAddFriend, BorderLayout.EAST);
         panel.add(header, BorderLayout.NORTH);
 
-        JPanel listContainer = new JPanel();
-        listContainer.setLayout(new BoxLayout(listContainer, BoxLayout.Y_AXIS));
-        listContainer.setOpaque(false);
+        ScrollableBoxPanel listContainer = new ScrollableBoxPanel();
 
         // 1. Bạn bè trực tuyến (Online Friends)
         lblFriendsOnlineHeader = new JLabel("BẠN BÈ TRỰC TUYẾN — 0");
         lblFriendsOnlineHeader.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblFriendsOnlineHeader.setForeground(ThemeManager.SUCCESS);
         lblFriendsOnlineHeader.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        lblFriendsOnlineHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
         listContainer.add(lblFriendsOnlineHeader);
 
-        friendsOnlineList = new JList<>(friendsOnlineModel);
-        styleList(friendsOnlineList);
+        friendsOnlineList = new FullWidthFriendList<>(friendsOnlineModel);
         friendsOnlineList.setCellRenderer(new FriendUserRenderer(true, true));
         attachFriendListListeners(friendsOnlineList, true, true);
         listContainer.add(friendsOnlineList);
@@ -410,10 +408,10 @@ public class ConversationSidebar extends JPanel {
         lblFriendsOfflineHeader.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblFriendsOfflineHeader.setForeground(ThemeManager.TEXT_MUTED);
         lblFriendsOfflineHeader.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        lblFriendsOfflineHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
         listContainer.add(lblFriendsOfflineHeader);
 
-        friendsOfflineList = new JList<>(friendsOfflineModel);
-        styleList(friendsOfflineList);
+        friendsOfflineList = new FullWidthFriendList<>(friendsOfflineModel);
         friendsOfflineList.setCellRenderer(new FriendUserRenderer(true, false));
         attachFriendListListeners(friendsOfflineList, true, false);
         listContainer.add(friendsOfflineList);
@@ -421,14 +419,14 @@ public class ConversationSidebar extends JPanel {
         listContainer.add(Box.createVerticalStrut(10));
 
         // 3. Người dùng khác trong mạng đang Online
-        lblOtherOnlineHeader = new JLabel("NGƯỜI DÙNG KHÁC TRỰC TUYẾN — 0");
+        lblOtherOnlineHeader = new JLabel("NGƯỜI DÙNG KHÁC (ONLINE) — 0");
         lblOtherOnlineHeader.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblOtherOnlineHeader.setForeground(ThemeManager.ACCENT_CYAN);
         lblOtherOnlineHeader.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
+        lblOtherOnlineHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
         listContainer.add(lblOtherOnlineHeader);
 
-        otherOnlineList = new JList<>(otherOnlineModel);
-        styleList(otherOnlineList);
+        otherOnlineList = new FullWidthFriendList<>(otherOnlineModel);
         otherOnlineList.setCellRenderer(new FriendUserRenderer(false, true));
         attachFriendListListeners(otherOnlineList, false, true);
         listContainer.add(otherOnlineList);
@@ -437,6 +435,7 @@ public class ConversationSidebar extends JPanel {
         lblEmptyDmsHint.setFont(ThemeManager.FONT_SMALL);
         lblEmptyDmsHint.setForeground(new Color(0x64, 0x74, 0x8B));
         lblEmptyDmsHint.setBorder(BorderFactory.createEmptyBorder(8, 8, 4, 0));
+        lblEmptyDmsHint.setAlignmentX(Component.LEFT_ALIGNMENT);
         lblEmptyDmsHint.setVisible(false);
         listContainer.add(lblEmptyDmsHint);
 
@@ -453,6 +452,9 @@ public class ConversationSidebar extends JPanel {
     private void attachFriendListListeners(JList<String> list, boolean isFriend, boolean isOnline) {
         list.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && list.getSelectedValue() != null) {
+                if (list != friendsOnlineList && friendsOnlineList != null) friendsOnlineList.clearSelection();
+                if (list != friendsOfflineList && friendsOfflineList != null) friendsOfflineList.clearSelection();
+                if (list != otherOnlineList && otherOnlineList != null) otherOnlineList.clearSelection();
                 if (listener != null) listener.onUserSelected(list.getSelectedValue());
             }
         });
@@ -768,7 +770,7 @@ public class ConversationSidebar extends JPanel {
             lblFriendsOfflineHeader.setText("BẠN BÈ NGOẠI TUYẾN — " + friendsOfflineModel.size());
         }
         if (lblOtherOnlineHeader != null) {
-            lblOtherOnlineHeader.setText("NGƯỜI DÙNG KHÁC TRỰC TUYẾN — " + otherOnlineModel.size());
+            lblOtherOnlineHeader.setText("NGƯỜI DÙNG KHÁC (ONLINE) — " + otherOnlineModel.size());
         }
 
         boolean isEmpty = friendsOnlineModel.isEmpty() && friendsOfflineModel.isEmpty() && otherOnlineModel.isEmpty();
@@ -1023,7 +1025,7 @@ public class ConversationSidebar extends JPanel {
                 }
             };
             p.setOpaque(false);
-            p.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
+            p.setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
 
             String user = value.toString();
             JLabel avatar = new JLabel(ThemeManager.createAvatarIcon(user, 26, isOnline));
@@ -1031,9 +1033,11 @@ public class ConversationSidebar extends JPanel {
             JPanel center = new JPanel();
             center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
             center.setOpaque(false);
+            center.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JPanel rowTop = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
             rowTop.setOpaque(false);
+            rowTop.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JLabel label = new JLabel("@" + user);
             label.setFont(isSelected ? ThemeManager.FONT_BODY_BOLD : ThemeManager.FONT_BODY);
@@ -1047,6 +1051,8 @@ public class ConversationSidebar extends JPanel {
             JLabel statusLabel = new JLabel(isOnline ? "● Trực tuyến" : "○ Ngoại tuyến");
             statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
             statusLabel.setForeground(isOnline ? ThemeManager.SUCCESS : new Color(0x64, 0x74, 0x8B));
+            statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            statusLabel.setBorder(BorderFactory.createEmptyBorder(2, 4, 0, 0));
 
             center.add(rowTop);
             center.add(statusLabel);
@@ -1054,6 +1060,32 @@ public class ConversationSidebar extends JPanel {
             p.add(avatar, BorderLayout.WEST);
             p.add(center, BorderLayout.CENTER);
             return p;
+        }
+    }
+
+    private static class ScrollableBoxPanel extends JPanel implements javax.swing.Scrollable {
+        public ScrollableBoxPanel() {
+            setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+            setOpaque(false);
+        }
+        @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
+        @Override public int getScrollableUnitIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) { return 16; }
+        @Override public int getScrollableBlockIncrement(java.awt.Rectangle visibleRect, int orientation, int direction) { return 48; }
+        @Override public boolean getScrollableTracksViewportWidth() { return true; }
+        @Override public boolean getScrollableTracksViewportHeight() { return false; }
+    }
+
+    private static class FullWidthFriendList<E> extends JList<E> {
+        public FullWidthFriendList(javax.swing.ListModel<E> model) {
+            super(model);
+            setAlignmentX(Component.LEFT_ALIGNMENT);
+            setOpaque(false);
+            setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            setFixedCellHeight(46);
+        }
+        @Override
+        public Dimension getMaximumSize() {
+            return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
         }
     }
 }
