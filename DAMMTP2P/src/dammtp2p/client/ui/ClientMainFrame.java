@@ -637,6 +637,11 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         timelineCardLayout.show(timelineContainer, key);
         currentActiveChatKey = key;
         updateChatHeader();
+        if (key.startsWith("user:")) {
+            String targetUser = key.substring(5);
+            sidebar.clearUnreadCount(targetUser);
+            memberListPanel.clearUnreadCount(targetUser);
+        }
         return timeline;
     }
 
@@ -948,7 +953,24 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
                 return;
             }
             key = "user:" + partner.toLowerCase();
-            ConversationTimeline t = openOrCreateTimeline(key, partner, true);
+            boolean isCurrentlyActive = (currentActiveChatKey != null && currentActiveChatKey.equalsIgnoreCase(key));
+            ConversationTimeline t;
+            if (message.isOutgoing() || isCurrentlyActive) {
+                t = openOrCreateTimeline(key, partner, true);
+                sidebar.clearUnreadCount(partner);
+                memberListPanel.clearUnreadCount(partner);
+            } else {
+                t = chatTimelines.get(key);
+                if (t == null) {
+                    t = new ConversationTimeline(partner, true);
+                    chatTimelines.put(key, t);
+                    timelineContainer.add(t, key);
+                }
+                // Incoming message to background conversation: increment unread count & show chat bubble
+                sidebar.incrementUnreadCount(partner);
+                memberListPanel.incrementUnreadCount(partner);
+                ToastNotification.show(this, "💬 Tin nhắn mới từ @" + partner + ": " + message.getContent(), ToastNotification.Type.INFO);
+            }
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         }
     }
@@ -1098,8 +1120,9 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
     public void onVoiceMembersUpdated(String roomId, List<String> members) {
         SwingUtilities.invokeLater(() -> {
             if (roomId != null && members != null) {
-                voiceRoomParticipants.put(roomId, members);
-                sidebar.repaint();
+                voiceRoomParticipants.put(roomId.toLowerCase(), members);
+                sidebar.setVoiceParticipants(roomId, members);
+                memberListPanel.setVoiceMembers(members);
             }
         });
     }
@@ -1161,6 +1184,14 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         if (client.isAuthenticated()) {
             client.joinVoiceRoom(roomName);
             sidebar.setVoiceState(true, roomName);
+            String me = client.getAuthenticatedUser();
+            if (me != null) {
+                List<String> list = new ArrayList<>(sidebar.getVoiceParticipants(roomName));
+                if (!list.contains(me)) {
+                    list.add(me);
+                    sidebar.setVoiceParticipants(roomName, list);
+                }
+            }
             ToastNotification.show(this, "Đã tham gia phòng thoại: " + roomName, ToastNotification.Type.SUCCESS);
         } else {
             ToastNotification.show(this, "Vui lòng đăng nhập trước khi tham gia thoại!", ToastNotification.Type.WARNING);
@@ -1248,6 +1279,14 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
     public void onVoiceLeaveRequested() {
         client.leaveVoiceRoom();
         sidebar.setVoiceState(false, null);
+        String me = client.getAuthenticatedUser();
+        if (me != null) {
+            for (Map.Entry<String, List<String>> entry : voiceRoomParticipants.entrySet()) {
+                if (entry.getValue().remove(me)) {
+                    sidebar.setVoiceParticipants(entry.getKey(), entry.getValue());
+                }
+            }
+        }
         ToastNotification.show(this, "Đã rời phòng thoại.", ToastNotification.Type.INFO);
     }
 

@@ -7,6 +7,12 @@ bin/
 out/
 *.class
 
+# Dữ liệu runtime và tệp tải về
+downloads/*
+!downloads/.gitkeep
+server_data/
+screenshots/
+
 # Các thư mục IDE
 .idea/
 .vscode/
