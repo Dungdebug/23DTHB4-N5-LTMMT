@@ -286,10 +286,9 @@ public final class ThemeManager {
         final Color startColor = AVATAR_GRADIENTS[paletteIdx][0];
         final Color endColor = AVATAR_GRADIENTS[paletteIdx][1];
 
-        final int bubbleExtra = 8;
-        final int bubbleTopExtra = 4;
+        final int bubbleExtra = (unreadCount > 0) ? 10 : 0;
         final int totalWidth = size + bubbleExtra;
-        final int totalHeight = size + bubbleTopExtra;
+        final int totalHeight = size + (unreadCount > 0 ? 5 : 0);
 
         return new Icon() {
             @Override
@@ -299,7 +298,7 @@ public final class ThemeManager {
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
                 int avatarX = x;
-                int avatarY = y + bubbleTopExtra;
+                int avatarY = y + (unreadCount > 0 ? 4 : 0);
 
                 // Speaking indicator glow / outer emerald ring
                 if (isSpeaking) {

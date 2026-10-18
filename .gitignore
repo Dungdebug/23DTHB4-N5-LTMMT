@@ -7,15 +7,18 @@ bin/
 out/
 *.class
 
-# Dữ liệu runtime và tệp tải về
-downloads/*
-!downloads/.gitkeep
+# Dữ liệu runtime, demo scripts và tệp tải về
+downloads/
 server_data/
 screenshots/
+scripts/
 
 # Các thư mục IDE
 .idea/
 .vscode/
+nbproject/
+.project
+.classpath
 *.swp
 *.swo
 *~
