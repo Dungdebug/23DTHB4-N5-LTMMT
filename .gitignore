@@ -72,3 +72,13 @@ env/
 .idea/
 *.sublime-project
 *.sublime-workspace
+nbproject/private/
+
+# Runtime test data and releases
+server_data/
+downloads/
+release/
+archive_legacy_p2p/
+screenshots/
+CLEANUP_REPORT.md
+*.odt
