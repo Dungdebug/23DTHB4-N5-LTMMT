@@ -16,14 +16,14 @@ if exist "%~dp0release\DAMMTP2P-Server\DAMMTP2P-Server.exe" (
 :: 2. Chay em qua javaw
 where javaw >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    start "" javaw "-Dfile.encoding=UTF-8" -jar "%~dp0dist\DAMMTP2P.jar" --server
+    start "" javaw "-Dfile.encoding=UTF-8" -cp "%~dp0dist\DAMMTP2P.jar;%~dp0dist\lib\*" dammtp2p.server.ServerMain
     exit /b 0
 )
 
 :: 3. Chay qua java
 where java >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    start "" java "-Dfile.encoding=UTF-8" -jar "%~dp0dist\DAMMTP2P.jar" --server
+    start "" java "-Dfile.encoding=UTF-8" -cp "%~dp0dist\DAMMTP2P.jar;%~dp0dist\lib\*" dammtp2p.server.ServerMain
     exit /b 0
 )
 
