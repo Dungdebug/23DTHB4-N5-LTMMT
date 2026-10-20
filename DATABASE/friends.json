@@ -1,0 +1,12 @@
+{
+  "jhgj": ["charlie"],
+  "tan kiet": ["giasuo"],
+  "bob": ["alice"],
+  "tkiet": ["giáoa", "dung"],
+  "dung": ["tkiet"],
+  "5": [],
+  "tankiet": ["charlie"],
+  "alice": ["bob", "charlie"],
+  "giáoa": ["tkiet"],
+  "charlie": ["jhgj", "TanKiet"]
+}

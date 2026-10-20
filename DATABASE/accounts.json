@@ -1,0 +1,52 @@
+[
+  {
+    "username": "Tan Kiet",
+    "salt": "431d206cdd998f7d1179b01d499729f3",
+    "hash": "17cd01ede64e556bb24eb932ef247af12fe07a6bbc78d7f338b99320edde0749"
+  },
+  {
+    "username": "alice123",
+    "salt": "cd23825c7c698c01c7beca440eadd8b5",
+    "hash": "4fe9ee2d63b5b4ae1ebfba361a36b36d9ea54e8912a33b4d4269df2b144462a8"
+  },
+  {
+    "username": "bob",
+    "salt": "f0ac73816e3f53a0b6e1adad2ad103a1",
+    "hash": "893743b42297b76fe666576feaad01578b2788d0ad4d9f5261aa7657c4caa0ff"
+  },
+  {
+    "username": "tkiet",
+    "salt": "8bb8ede20c8acf773e824a4efd265a05",
+    "hash": "301bcaeb777ae5cbcb3d3266b8cca368db5429d581926ebf3e9ce7387e05252a"
+  },
+  {
+    "username": "Giasuo",
+    "salt": "1dbf6421f1eee8c1bb96c07b3b0c2b17",
+    "hash": "43b401b6cd5ae953b2c976900fb8bf4f7f24a54402f9af7c13e163179cc347c0"
+  },
+  {
+    "username": "TanKiet",
+    "salt": "3216a788607aaa64d984b5ddd48f0da3",
+    "hash": "8c439c30ca14238e66ae25621a585905b572beacaed6c0f5e5dffa3e6ae1d527"
+  },
+  {
+    "username": "alice",
+    "salt": "0463c8b2980431f091c54327c48b18da",
+    "hash": "b058eb923047cae032df462e5a4d7b14be91fe1ef9beb04ba2f3f43bd1335e5b"
+  },
+  {
+    "username": "admin",
+    "salt": "f104475e8b0fad1eb8a51f64d9b940e4",
+    "hash": "0a2101d2543bbc87158dfc4e52c027752986a928e007662b23e9d392d0247866"
+  },
+  {
+    "username": "TanKietne",
+    "salt": "f4cc45661ed55a1b5c7d0a4b6e5abcc3",
+    "hash": "cad61db97dd4e75e9a27dec592c56c0f9919d653dcb9cf397981a2a8d72e3fad"
+  },
+  {
+    "username": "charlie",
+    "salt": "01161e79f149945bc69b9ee0b735e931",
+    "hash": "5095eb2b6fcfa90c0fc1a8c6f2f7b85453bc9027894f1c76e8bd3fbe0e6147d7"
+  }
+]

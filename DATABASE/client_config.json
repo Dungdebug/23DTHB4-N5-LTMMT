@@ -1,0 +1,12 @@
+{
+  "serverIp": "127.0.0.1",
+  "controlPort": 8888,
+  "filePort": 8889,
+  "voicePort": 8890,
+  "downloadDir": "downloads",
+  "lastUsername": "alice",
+  "voiceVolume": 1.00,
+  "voiceMuted": true,
+  "voiceDeafened": false,
+  "autoAcceptFiles": false
+}
