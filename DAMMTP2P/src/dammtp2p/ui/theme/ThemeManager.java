@@ -269,14 +269,6 @@ public final class ThemeManager {
     }
 
     public static Icon createAvatarIcon(String name, int size, boolean isOnline, boolean isSpeaking) {
-        return createAvatarWithChatBubble(name, size, isOnline, isSpeaking, 0);
-    }
-
-    /**
-     * Creates an avatar circle icon with speaking neon ring, online dot, and
-     * a stylized chat bubble notification badge containing the unread message count.
-     */
-    public static Icon createAvatarWithChatBubble(String name, int size, boolean isOnline, boolean isSpeaking, int unreadCount) {
         final String initial = (name != null && !name.trim().isEmpty())
                 ? name.trim().substring(0, 1).toUpperCase() : "?";
 
@@ -286,10 +278,6 @@ public final class ThemeManager {
         final Color startColor = AVATAR_GRADIENTS[paletteIdx][0];
         final Color endColor = AVATAR_GRADIENTS[paletteIdx][1];
 
-        final int bubbleExtra = (unreadCount > 0) ? 10 : 0;
-        final int totalWidth = size + bubbleExtra;
-        final int totalHeight = size + (unreadCount > 0 ? 5 : 0);
-
         return new Icon() {
             @Override
             public void paintIcon(Component c, Graphics g, int x, int y) {
@@ -297,43 +285,40 @@ public final class ThemeManager {
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
 
-                int avatarX = x;
-                int avatarY = y + (unreadCount > 0 ? 4 : 0);
-
                 // Speaking indicator glow / outer emerald ring
                 if (isSpeaking) {
                     g2.setColor(SUCCESS);
                     g2.setStroke(new BasicStroke(2.5f));
-                    g2.drawOval(avatarX - 1, avatarY - 1, size + 1, size + 1);
+                    g2.drawOval(x - 1, y - 1, size + 1, size + 1);
                 }
 
                 // Multi-tone 45-degree linear gradient fill
                 LinearGradientPaint gradient = new LinearGradientPaint(
-                        avatarX, avatarY, avatarX + size, avatarY + size,
+                        x, y, x + size, y + size,
                         new float[]{0.0f, 1.0f},
                         new Color[]{startColor, endColor}
                 );
                 g2.setPaint(gradient);
-                g2.fillOval(avatarX, avatarY, size, size);
+                g2.fillOval(x, y, size, size);
 
                 // Inner rim lighting (subtle 1px translucent ring)
                 g2.setColor(new Color(255, 255, 255, 45));
                 g2.setStroke(new BasicStroke(1.2f));
-                g2.drawOval(avatarX + 1, avatarY + 1, size - 2, size - 2);
+                g2.drawOval(x + 1, y + 1, size - 2, size - 2);
 
                 // Initial text
                 g2.setColor(Color.WHITE);
                 g2.setFont(new Font("Segoe UI", Font.BOLD, (int) (size * 0.52)));
                 FontMetrics fm = g2.getFontMetrics();
-                int tx = avatarX + (size - fm.stringWidth(initial)) / 2;
-                int ty = avatarY + (size - fm.getHeight()) / 2 + fm.getAscent();
+                int tx = x + (size - fm.stringWidth(initial)) / 2;
+                int ty = y + (size - fm.getHeight()) / 2 + fm.getAscent();
                 g2.drawString(initial, tx, ty);
 
                 // Online status indicator ring at bottom right
                 if (isOnline) {
-                    int dotSize = Math.max(6, (int) (size * 0.30));
-                    int dotX = avatarX + size - dotSize;
-                    int dotY = avatarY + size - dotSize;
+                    int dotSize = Math.max(6, (int) (size * 0.32));
+                    int dotX = x + size - dotSize;
+                    int dotY = y + size - dotSize;
 
                     // Dark rim around dot
                     g2.setColor(BG_PANEL);
@@ -344,62 +329,17 @@ public final class ThemeManager {
                     g2.fillOval(dotX, dotY, dotSize, dotSize);
                 }
 
-                // Chat bubble badge with message count on top-right of avatar
-                if (unreadCount > 0) {
-                    String badgeText = unreadCount > 99 ? "99+" : String.valueOf(unreadCount);
-                    g2.setFont(new Font("Segoe UI", Font.BOLD, 10));
-                    FontMetrics bfm = g2.getFontMetrics();
-                    int textW = bfm.stringWidth(badgeText);
-                    int badgeH = 17;
-                    int badgeW = Math.max(17, textW + 8);
-
-                    int bx = avatarX + size - (badgeW / 2);
-                    int by = y;
-
-                    // Drop shadow behind bubble
-                    g2.setColor(new Color(0, 0, 0, 90));
-                    g2.fillRoundRect(bx - 1, by + 1, badgeW + 2, badgeH + 2, 10, 10);
-
-                    // Bubble tail pointing down-left toward avatar
-                    java.awt.Polygon tail = new java.awt.Polygon();
-                    tail.addPoint(bx + 4, by + badgeH - 2);
-                    tail.addPoint(bx + 1, by + badgeH + 4);
-                    tail.addPoint(bx + 8, by + badgeH - 1);
-                    g2.setColor(new Color(0xEF, 0x44, 0x44));
-                    g2.fillPolygon(tail);
-
-                    // Chat bubble body with gradient
-                    LinearGradientPaint bubbleGrad = new LinearGradientPaint(
-                            bx, by, bx, by + badgeH,
-                            new float[]{0.0f, 1.0f},
-                            new Color[]{new Color(0xFF, 0x47, 0x57), new Color(0xEE, 0x22, 0x44)}
-                    );
-                    g2.setPaint(bubbleGrad);
-                    g2.fillRoundRect(bx, by, badgeW, badgeH, 10, 10);
-
-                    // Crisp white border
-                    g2.setColor(new Color(255, 255, 255, 220));
-                    g2.setStroke(new BasicStroke(1.2f));
-                    g2.drawRoundRect(bx, by, badgeW - 1, badgeH - 1, 10, 10);
-
-                    // Number of messages inside chat bubble
-                    g2.setColor(Color.WHITE);
-                    int btx = bx + (badgeW - textW) / 2;
-                    int bty = by + (badgeH - bfm.getHeight()) / 2 + bfm.getAscent() - 1;
-                    g2.drawString(badgeText, btx, bty);
-                }
-
                 g2.dispose();
             }
 
             @Override
             public int getIconWidth() {
-                return totalWidth;
+                return size;
             }
 
             @Override
             public int getIconHeight() {
-                return totalHeight;
+                return size;
             }
         };
     }

@@ -16,7 +16,6 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
@@ -26,7 +25,6 @@ import javax.swing.DefaultListModel;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JList;
-import javax.swing.ListCellRenderer;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -59,7 +57,6 @@ public class ParticipantListPanel extends JPanel {
     private final JLabel lblEmptyHint;
     private final JButton btnCloseDrawer;
     private final Set<String> speakingUsers = new HashSet<>();
-    private final Map<String, Integer> unreadCounts = new java.util.concurrent.ConcurrentHashMap<>();
     private volatile String currentUsername = null;
 
     public ParticipantListPanel(MemberActionListener listener) {
@@ -220,28 +217,9 @@ public class ParticipantListPanel extends JPanel {
         onlineList.repaint();
     }
 
-    public void incrementUnreadCount(String username) {
-        if (username != null && !username.trim().isEmpty()) {
-            String key = username.trim().toLowerCase();
-            unreadCounts.put(key, unreadCounts.getOrDefault(key, 0) + 1);
-            onlineList.repaint();
-        }
-    }
-
-    public void clearUnreadCount(String username) {
-        if (username != null) {
-            unreadCounts.remove(username.trim().toLowerCase());
-            onlineList.repaint();
-        }
-    }
-
-    public void setVoiceMembers(List<String> members) {
-        onlineList.repaint();
-    }
-
-    private class MemberRenderer implements ListCellRenderer<String> {
+    private class MemberRenderer extends DefaultListCellRenderer {
         @Override
-        public Component getListCellRendererComponent(JList<? extends String> list, String value, int index, boolean isSelected, boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JPanel p = new JPanel(new BorderLayout(8, 0)) {
                 @Override
                 protected void paintComponent(Graphics g) {
@@ -260,11 +238,10 @@ public class ParticipantListPanel extends JPanel {
             p.setOpaque(false);
             p.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
 
-            String username = (value != null) ? value : "";
+            String username = value.toString();
             boolean isSelf = (currentUsername != null && username.equalsIgnoreCase(currentUsername));
             boolean isSpeaking = speakingUsers.contains(username.toLowerCase());
-            int unread = unreadCounts.getOrDefault(username.toLowerCase(), 0);
-            JLabel avatar = new JLabel(ThemeManager.createAvatarWithChatBubble(username, 30, true, isSpeaking, unread));
+            JLabel avatar = new JLabel(ThemeManager.createAvatarIcon(username, 30, true, isSpeaking));
 
             JPanel infoCol = new JPanel();
             infoCol.setLayout(new BoxLayout(infoCol, BoxLayout.Y_AXIS));
@@ -330,19 +307,6 @@ public class ParticipantListPanel extends JPanel {
 
             p.add(avatar, BorderLayout.WEST);
             p.add(infoCol, BorderLayout.CENTER);
-
-            if (unread > 0) {
-                JPanel unreadCol = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 8));
-                unreadCol.setOpaque(false);
-                JLabel badge = ThemeManager.createBadge(unread > 99 ? "99+" : String.valueOf(unread), Color.WHITE, new Color(0xEF, 0x44, 0x44));
-                badge.setFont(new Font("Segoe UI", Font.BOLD, 10));
-                unreadCol.add(badge);
-                p.add(unreadCol, BorderLayout.EAST);
-            }
-
-            int w = (list != null && list.getWidth() > 0) ? list.getWidth() : 240;
-            p.setSize(w, 48);
-            p.doLayout();
             return p;
         }
     }

@@ -637,11 +637,6 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         timelineCardLayout.show(timelineContainer, key);
         currentActiveChatKey = key;
         updateChatHeader();
-        if (key.startsWith("user:")) {
-            String targetUser = key.substring(5);
-            sidebar.clearUnreadCount(targetUser);
-            memberListPanel.clearUnreadCount(targetUser);
-        }
         return timeline;
     }
 
@@ -949,37 +944,10 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         } else {
             String partner = message.isOutgoing() ? message.getReceiver() : message.getSender();
-            if (partner == null || partner.trim().isEmpty() || "Peer".equalsIgnoreCase(partner) || "unknown".equalsIgnoreCase(partner)) {
-                return;
-            }
-            key = "user:" + partner.toLowerCase();
-            boolean isCurrentlyActive = (currentActiveChatKey != null && currentActiveChatKey.equalsIgnoreCase(key));
-            ConversationTimeline t;
-            if (message.isOutgoing() || isCurrentlyActive) {
-                t = openOrCreateTimeline(key, partner, true);
-                sidebar.clearUnreadCount(partner);
-                memberListPanel.clearUnreadCount(partner);
-            } else {
-                t = chatTimelines.get(key);
-                if (t == null) {
-                    t = new ConversationTimeline(partner, true);
-                    chatTimelines.put(key, t);
-                    timelineContainer.add(t, key);
-                }
-                // Incoming message to background conversation: increment unread count & show chat bubble
-                sidebar.incrementUnreadCount(partner);
-                memberListPanel.incrementUnreadCount(partner);
-                ToastNotification.show(this, "💬 Tin nhắn mới từ @" + partner + ": " + message.getContent(), ToastNotification.Type.INFO);
-            }
+            key = "user:" + (partner != null ? partner.toLowerCase() : "unknown");
+            ConversationTimeline t = openOrCreateTimeline(key, partner != null ? partner : "Peer", true);
             t.addChatMessage(message, message.isOutgoing(), client.getAuthenticatedUser());
         }
-    }
-
-    @Override
-    public void onSystemError(String message) {
-        SwingUtilities.invokeLater(() -> {
-            ToastNotification.show(this, message, ToastNotification.Type.WARNING);
-        });
     }
 
     @Override
@@ -1120,9 +1088,8 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
     public void onVoiceMembersUpdated(String roomId, List<String> members) {
         SwingUtilities.invokeLater(() -> {
             if (roomId != null && members != null) {
-                voiceRoomParticipants.put(roomId.toLowerCase(), members);
-                sidebar.setVoiceParticipants(roomId, members);
-                memberListPanel.setVoiceMembers(members);
+                voiceRoomParticipants.put(roomId, members);
+                sidebar.repaint();
             }
         });
     }
@@ -1184,14 +1151,6 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         if (client.isAuthenticated()) {
             client.joinVoiceRoom(roomName);
             sidebar.setVoiceState(true, roomName);
-            String me = client.getAuthenticatedUser();
-            if (me != null) {
-                List<String> list = new ArrayList<>(sidebar.getVoiceParticipants(roomName));
-                if (!list.contains(me)) {
-                    list.add(me);
-                    sidebar.setVoiceParticipants(roomName, list);
-                }
-            }
             ToastNotification.show(this, "Đã tham gia phòng thoại: " + roomName, ToastNotification.Type.SUCCESS);
         } else {
             ToastNotification.show(this, "Vui lòng đăng nhập trước khi tham gia thoại!", ToastNotification.Type.WARNING);
@@ -1223,20 +1182,31 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
         handleFriendRemove(username);
     }
 
+    @Override
+    public void onFriendStatusChanged(String target, boolean success, String message) {
+        SwingUtilities.invokeLater(() -> {
+            String me = client != null ? client.getAuthenticatedUser() : initialUsername;
+            sidebar.updateOnlineUsers(currentOnlineUsers);
+            memberListPanel.updateMembers(currentOnlineUsers, me);
+            if (message != null && !message.isEmpty()) {
+                ToastNotification.show(this, message, success ? ToastNotification.Type.SUCCESS : ToastNotification.Type.INFO);
+            }
+        });
+    }
+
     private void handleFriendAdd(String targetUser) {
         String me = client != null ? client.getAuthenticatedUser() : initialUsername;
-        if (me == null || targetUser == null || targetUser.trim().isEmpty()) return;
-        targetUser = targetUser.trim();
+        if (me == null || targetUser == null) return;
         boolean added = dammtp2p.client.FriendsManager.getInstance().addFriend(me, targetUser);
         if (added) {
             ToastNotification.show(this, "Đã kết bạn thành công với @" + targetUser + "!", ToastNotification.Type.SUCCESS);
             sidebar.updateOnlineUsers(currentOnlineUsers);
             memberListPanel.updateMembers(currentOnlineUsers, me);
-            try {
-                if (client != null) {
+            if (client != null && client.isAuthenticated()) {
+                try {
                     client.requestAddFriend(targetUser);
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
         } else {
             ToastNotification.show(this, "@" + targetUser + " đã có trong danh sách bạn bè!", ToastNotification.Type.WARNING);
         }
@@ -1250,11 +1220,11 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
             ToastNotification.show(this, "Đã hủy kết bạn với @" + targetUser + ".", ToastNotification.Type.INFO);
             sidebar.updateOnlineUsers(currentOnlineUsers);
             memberListPanel.updateMembers(currentOnlineUsers, me);
-            try {
-                if (client != null) {
+            if (client != null && client.isAuthenticated()) {
+                try {
                     client.requestRemoveFriend(targetUser);
-                }
-            } catch (Exception ignored) {}
+                } catch (Exception ignored) {}
+            }
         }
     }
 
@@ -1279,14 +1249,6 @@ public class ClientMainFrame extends JFrame implements ClientCore.ClientListener
     public void onVoiceLeaveRequested() {
         client.leaveVoiceRoom();
         sidebar.setVoiceState(false, null);
-        String me = client.getAuthenticatedUser();
-        if (me != null) {
-            for (Map.Entry<String, List<String>> entry : voiceRoomParticipants.entrySet()) {
-                if (entry.getValue().remove(me)) {
-                    sidebar.setVoiceParticipants(entry.getKey(), entry.getValue());
-                }
-            }
-        }
         ToastNotification.show(this, "Đã rời phòng thoại.", ToastNotification.Type.INFO);
     }
 

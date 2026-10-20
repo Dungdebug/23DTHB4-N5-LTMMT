@@ -69,17 +69,15 @@ public class ChatMessageView extends JPanel {
     private FileActionListener fileListener;
 
     private final boolean isSelf;
-    private final String iv;
-    private final boolean isEncrypted;
 
     public ChatMessageView(ChatMessage msg, boolean isCoalesced, String currentUsername) {
         this.sender = msg.getSender();
         this.timestamp = msg.getTimestamp();
         this.content = msg.getContent();
         this.isCoalesced = isCoalesced;
-        this.isSelf = msg.isOutgoing() || (currentUsername != null && currentUsername.equalsIgnoreCase(msg.getSender()));
-        this.iv = msg.getIv();
-        this.isEncrypted = msg.isEncrypted();
+        this.isSelf = (currentUsername != null && !currentUsername.trim().isEmpty())
+                ? currentUsername.trim().equalsIgnoreCase(msg.getSender())
+                : msg.isOutgoing();
 
         initLayout(msg.isEncrypted());
     }
@@ -95,9 +93,9 @@ public class ChatMessageView extends JPanel {
         this.isCoalesced = false;
         this.fileMetadata = meta;
         this.fileListener = listener;
-        this.isSelf = !isIncoming || (currentUsername != null && currentUsername.equalsIgnoreCase(meta.getSender()));
-        this.iv = meta.getBaseIvBase64();
-        this.isEncrypted = meta.isEncrypted();
+        this.isSelf = (currentUsername != null && !currentUsername.trim().isEmpty())
+                ? currentUsername.trim().equalsIgnoreCase(meta.getSender())
+                : !isIncoming;
 
         initLayout(meta.isEncrypted());
         initAttachmentCard(isIncoming);
@@ -174,15 +172,8 @@ public class ChatMessageView extends JPanel {
             headerRow.add(lblTime);
 
             if (isEncrypted) {
-                JLabel lblLock = ThemeManager.createBadge("🔒 AES-128", ThemeManager.ACCENT_CYAN, new Color(0x06, 0xB6, 0xD4, 55));
-                lblLock.setToolTipText("Mã hóa AES-128-GCM bảo vệ đầu-cuối. Nhấn vào để xem chi tiết mã hóa!");
-                lblLock.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                lblLock.addMouseListener(new MouseAdapter() {
-                    @Override
-                    public void mouseClicked(MouseEvent e) {
-                        showEncryptionInspector(lblLock);
-                    }
-                });
+                JLabel lblLock = ThemeManager.createBadge("AES-128", ThemeManager.ACCENT_CYAN, new Color(0x06, 0xB6, 0xD4, 45));
+                lblLock.setToolTipText("Nội dung tin nhắn được mã hóa AES-128-GCM");
                 headerRow.add(lblLock);
             }
 
@@ -553,118 +544,5 @@ public class ChatMessageView extends JPanel {
         lbl.setForeground(ThemeManager.TEXT_SECONDARY);
         chip.add(lbl);
         return chip;
-    }
-
-    private void showEncryptionInspector(Component parent) {
-        javax.swing.JDialog dlg = new javax.swing.JDialog(
-                (java.awt.Frame) javax.swing.SwingUtilities.getWindowAncestor(parent),
-                "🔍 Chi Tiết Mã Hóa AES-128-GCM (Security Inspector)",
-                true
-        );
-        dlg.setSize(520, 480);
-        dlg.setLocationRelativeTo(parent);
-        dlg.setLayout(new BorderLayout());
-
-        JPanel root = new JPanel(new BorderLayout(12, 12));
-        root.setBackground(ThemeManager.BG_DARK);
-        root.setBorder(BorderFactory.createEmptyBorder(16, 20, 16, 20));
-
-        // Header
-        JPanel pnlHeader = new JPanel(new BorderLayout(8, 0));
-        pnlHeader.setOpaque(false);
-        JLabel lblTitle = new JLabel("BẢO MẬT ĐẦU-CUỐI: AES-128-GCM");
-        lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        lblTitle.setForeground(ThemeManager.ACCENT_ELECTRIC_CYAN);
-        JLabel lblSub = new JLabel("Nội dung được bảo vệ toàn vẹn bằng Galois/Counter Mode (NIST SP 800-38D)");
-        lblSub.setFont(ThemeManager.FONT_SMALL);
-        lblSub.setForeground(ThemeManager.TEXT_MUTED);
-        pnlHeader.add(lblTitle, BorderLayout.NORTH);
-        pnlHeader.add(lblSub, BorderLayout.SOUTH);
-        root.add(pnlHeader, BorderLayout.NORTH);
-
-        // Details Panel
-        JPanel details = new JPanel();
-        details.setLayout(new BoxLayout(details, BoxLayout.Y_AXIS));
-        details.setOpaque(false);
-
-        addInspectorRow(details, "Thuật toán mã hóa:", "AES / GCM / NoPadding");
-        addInspectorRow(details, "Độ dài khóa (Key Size):", "128 bits (16 bytes SecretKey)");
-        addInspectorRow(details, "Xác thực toàn vẹn:", "128-bit Authentication Tag (MAC)");
-        addInspectorRow(details, "Vector khởi tạo (IV / Nonce):", (iv != null && !iv.isEmpty()) ? iv : "12-byte random cryptographically secure nonce");
-        addInspectorRow(details, "Người gửi (Sender):", sender != null ? "@" + sender : "Unknown");
-        addInspectorRow(details, "Thời gian mã hóa:", FormatUtils.formatTime(timestamp));
-
-        // Plaintext vs Ciphertext representation
-        details.add(Box.createVerticalStrut(10));
-        JLabel lblPlain = new JLabel("Bản rõ (Plaintext hiển thị ở Client giải mã):");
-        lblPlain.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        lblPlain.setForeground(ThemeManager.SUCCESS);
-        details.add(lblPlain);
-
-        JTextArea txtPlain = new JTextArea(content != null ? content : (fileMetadata != null ? "[File Transfer: " + fileMetadata.getFileName() + " (" + fileMetadata.getFileSize() + " bytes)]" : "N/A"));
-        txtPlain.setEditable(false);
-        txtPlain.setLineWrap(true);
-        txtPlain.setWrapStyleWord(true);
-        txtPlain.setBackground(ThemeManager.BG_INPUT);
-        txtPlain.setForeground(Color.WHITE);
-        txtPlain.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
-        txtPlain.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        details.add(txtPlain);
-
-        details.add(Box.createVerticalStrut(8));
-        JLabel lblCipher = new JLabel("Bản mã truyền qua mạng Socket / Server:");
-        lblCipher.setFont(new Font("Segoe UI", Font.BOLD, 11));
-        lblCipher.setForeground(ThemeManager.ACCENT_CYAN);
-        details.add(lblCipher);
-
-        // Generate synthetic or real ciphertext display
-        String cipherPreview = "AES-GCM-CIPHERTEXT[" + (iv != null ? iv : "IV96") + "]:" +
-                java.util.Base64.getEncoder().encodeToString(
-                        (content != null ? content : "DAMMTP2P_DATA_STREAM").getBytes(java.nio.charset.StandardCharsets.UTF_8)
-                ) + "... (128-bit Tag Verified ✓)";
-        JTextArea txtCipher = new JTextArea(cipherPreview);
-        txtCipher.setEditable(false);
-        txtCipher.setLineWrap(true);
-        txtCipher.setBackground(ThemeManager.BG_INPUT);
-        txtCipher.setForeground(new Color(0x38, 0xBD, 0xF8));
-        txtCipher.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
-        txtCipher.setFont(new Font("Consolas", Font.PLAIN, 11));
-        details.add(txtCipher);
-
-        javax.swing.JScrollPane scroll = new javax.swing.JScrollPane(details);
-        scroll.setBorder(null);
-        scroll.setOpaque(false);
-        scroll.getViewport().setOpaque(false);
-        root.add(scroll, BorderLayout.CENTER);
-
-        // Footer button
-        JPanel pnlFooter = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
-        pnlFooter.setOpaque(false);
-        JButton btnClose = new JButton("Đóng");
-        btnClose.setFont(ThemeManager.FONT_SMALL_BOLD);
-        btnClose.setBackground(ThemeManager.ACCENT_PRIMARY);
-        btnClose.setForeground(Color.WHITE);
-        btnClose.addActionListener(e -> dlg.dispose());
-        pnlFooter.add(btnClose);
-        root.add(pnlFooter, BorderLayout.SOUTH);
-
-        dlg.setContentPane(root);
-        dlg.setVisible(true);
-    }
-
-    private void addInspectorRow(JPanel container, String title, String val) {
-        JPanel row = new JPanel(new BorderLayout(8, 0));
-        row.setOpaque(false);
-        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-        JLabel lblKey = new JLabel(title);
-        lblKey.setFont(ThemeManager.FONT_SMALL_BOLD);
-        lblKey.setForeground(ThemeManager.TEXT_SECONDARY);
-        JLabel lblVal = new JLabel(val);
-        lblVal.setFont(new Font("Segoe UI", Font.PLAIN, 11));
-        lblVal.setForeground(ThemeManager.TEXT_PRIMARY);
-        row.add(lblKey, BorderLayout.WEST);
-        row.add(lblVal, BorderLayout.EAST);
-        container.add(row);
-        container.add(Box.createVerticalStrut(4));
     }
 }

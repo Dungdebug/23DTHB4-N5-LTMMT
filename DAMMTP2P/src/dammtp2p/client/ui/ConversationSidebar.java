@@ -16,10 +16,8 @@ import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.LinearGradientPaint;
 import java.awt.RenderingHints;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -34,7 +32,6 @@ import javax.swing.Icon;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JList;
-import javax.swing.ListCellRenderer;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -74,11 +71,12 @@ public class ConversationSidebar extends JPanel {
     private JButton btnTabDms;
     private JButton btnTabRooms;
     private JButton btnTabVoice;
+    private JButton btnTabTransfers;
     private CardLayout contentCardLayout;
     private JPanel contentCards;
-    public static final String TAB_DMS = "TAB_DMS";
-    public static final String TAB_ROOMS = "TAB_ROOMS";
-    public static final String TAB_VOICE = "TAB_VOICE";
+    private static final String TAB_DMS = "TAB_DMS";
+    private static final String TAB_ROOMS = "TAB_ROOMS";
+    private static final String TAB_VOICE = "TAB_VOICE";
 
     // Models & Lists
     private final DefaultListModel<String> textChannelsModel = new DefaultListModel<>();
@@ -104,14 +102,8 @@ public class ConversationSidebar extends JPanel {
     private JLabel lblOtherOnlineHeader;
 
     // Voice participants & speaking tracker
-    private final Map<String, List<String>> voiceParticipants = new java.util.concurrent.ConcurrentHashMap<>();
-    private final Set<String> speakingUsers = java.util.concurrent.ConcurrentHashMap.newKeySet();
-    private JPanel roomsVoiceContainer;
-    private JPanel standaloneVoiceContainer;
-    private String currentVoiceRoom = null;
-
-    // Unread messages tracking (username -> unread count)
-    private final Map<String, Integer> unreadCounts = new java.util.concurrent.ConcurrentHashMap<>();
+    private final Map<String, List<String>> voiceParticipants = new HashMap<>();
+    private final Set<String> speakingUsers = new HashSet<>();
 
     // Voice RTC Dock
     private JPanel voiceDockPanel;
@@ -136,8 +128,7 @@ public class ConversationSidebar extends JPanel {
     public ConversationSidebar(SidebarListener listener) {
         this.listener = listener;
         setLayout(new BorderLayout());
-        setPreferredSize(new Dimension(285, Integer.MAX_VALUE));
-        setMinimumSize(new Dimension(270, 0));
+        setPreferredSize(new Dimension(260, Integer.MAX_VALUE));
         setBackground(ThemeManager.BG_SIDEBAR);
         setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, ThemeManager.BORDER_SUBTLE));
 
@@ -162,7 +153,6 @@ public class ConversationSidebar extends JPanel {
 
         // Default tab: Rooms (Nhóm)
         switchTab(TAB_ROOMS);
-        rebuildVoiceRoomsUI();
     }
 
     private JPanel createSegmentedNav() {
@@ -173,7 +163,7 @@ public class ConversationSidebar extends JPanel {
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)
         ));
 
-        JPanel segGrid = new JPanel(new GridLayout(1, 3, 6, 0)) {
+        JPanel segGrid = new JPanel(new GridLayout(1, 4, 4, 0)) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -189,14 +179,19 @@ public class ConversationSidebar extends JPanel {
         btnTabRooms = createNavTab("Nhóm", true);
         btnTabDms = createNavTab("Bạn bè", false);
         btnTabVoice = createNavTab("Thoại", false);
+        btnTabTransfers = createNavTab("Tệp", false);
 
         btnTabRooms.addActionListener(e -> switchTab(TAB_ROOMS));
         btnTabDms.addActionListener(e -> switchTab(TAB_DMS));
         btnTabVoice.addActionListener(e -> switchTab(TAB_VOICE));
+        btnTabTransfers.addActionListener(e -> {
+            if (listener != null) listener.onTransfersRequested();
+        });
 
         segGrid.add(btnTabRooms);
         segGrid.add(btnTabDms);
         segGrid.add(btnTabVoice);
+        segGrid.add(btnTabTransfers);
 
         navWrapper.add(segGrid, BorderLayout.CENTER);
         return navWrapper;
@@ -249,12 +244,13 @@ public class ConversationSidebar extends JPanel {
         updateTabStyle(btnTabRooms, TAB_ROOMS.equals(tabId));
         updateTabStyle(btnTabDms, TAB_DMS.equals(tabId));
         updateTabStyle(btnTabVoice, TAB_VOICE.equals(tabId));
+        updateTabStyle(btnTabTransfers, false);
     }
 
     private JPanel createRoomsPanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
         JPanel container = new JPanel();
         container.setLayout(new BoxLayout(container, BoxLayout.Y_AXIS));
@@ -267,16 +263,15 @@ public class ConversationSidebar extends JPanel {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(new Color(0x13, 0x1A, 0x28, 240));
-                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
                 g2.setColor(new Color(0x00, 0xF2, 0xFE, 60));
-                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 12, 12);
                 g2.dispose();
                 super.paintComponent(g);
             }
         };
         wsCard.setOpaque(false);
-        wsCard.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
-        wsCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        wsCard.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         wsCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 44));
 
         JLabel wsIcon = new JLabel(AppIcons.createNetworkIconSafe(16, ThemeManager.ACCENT_ELECTRIC_CYAN));
@@ -299,22 +294,19 @@ public class ConversationSidebar extends JPanel {
         // --- Category 1: Text Channels ---
         JPanel headerText = new JPanel(new BorderLayout());
         headerText.setOpaque(false);
-        headerText.setBorder(BorderFactory.createEmptyBorder(2, 4, 6, 4));
-        headerText.setAlignmentX(Component.LEFT_ALIGNMENT);
+        headerText.setBorder(BorderFactory.createEmptyBorder(0, 4, 6, 4));
         headerText.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
 
         JLabel titleText = new JLabel("CÁC KÊNH VĂN BẢN");
         titleText.setFont(new Font("Segoe UI", Font.BOLD, 10));
         titleText.setForeground(ThemeManager.TEXT_MUTED);
 
-        JButton btnAdd = new JButton("+ Tạo nhóm");
+        JButton btnAdd = new JButton("+ Tạo Nhóm");
         btnAdd.setFont(new Font("Segoe UI", Font.BOLD, 10));
         btnAdd.setForeground(ThemeManager.ACCENT_CYAN);
         btnAdd.setContentAreaFilled(false);
         btnAdd.setBorderPainted(false);
         btnAdd.setFocusPainted(false);
-        btnAdd.setMargin(new java.awt.Insets(0, 0, 0, 0));
-        btnAdd.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 0));
         btnAdd.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btnAdd.addActionListener(e -> {
             if (listener != null) listener.onCreateRoomRequested();
@@ -326,8 +318,6 @@ public class ConversationSidebar extends JPanel {
 
         textChannelsList = new JList<>(textChannelsModel);
         styleList(textChannelsList);
-        textChannelsList.setAlignmentX(Component.LEFT_ALIGNMENT);
-        textChannelsList.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
         textChannelsList.setCellRenderer(new TextChannelRenderer());
         textChannelsList.addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting() && textChannelsList.getSelectedValue() != null) {
@@ -341,8 +331,7 @@ public class ConversationSidebar extends JPanel {
         // --- Category 2: Voice RTC Channels ---
         JPanel headerVoice = new JPanel(new BorderLayout());
         headerVoice.setOpaque(false);
-        headerVoice.setBorder(BorderFactory.createEmptyBorder(2, 4, 6, 4));
-        headerVoice.setAlignmentX(Component.LEFT_ALIGNMENT);
+        headerVoice.setBorder(BorderFactory.createEmptyBorder(0, 4, 6, 4));
         headerVoice.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
 
         JLabel titleVoice = new JLabel("KÊNH THOẠI REALTIME (RTC)");
@@ -351,12 +340,15 @@ public class ConversationSidebar extends JPanel {
         headerVoice.add(titleVoice, BorderLayout.WEST);
         container.add(headerVoice);
 
-        roomsVoiceContainer = new JPanel();
-        roomsVoiceContainer.setLayout(new BoxLayout(roomsVoiceContainer, BoxLayout.Y_AXIS));
-        roomsVoiceContainer.setOpaque(false);
-        roomsVoiceContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
-        roomsVoiceContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-        container.add(roomsVoiceContainer);
+        voiceChannelsList = new JList<>(voiceChannelsModel);
+        styleList(voiceChannelsList);
+        voiceChannelsList.setCellRenderer(new VoiceChannelRenderer());
+        voiceChannelsList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && voiceChannelsList.getSelectedValue() != null) {
+                if (listener != null) listener.onVoiceRoomSelected(voiceChannelsList.getSelectedValue());
+            }
+        });
+        container.add(voiceChannelsList);
 
         JScrollPane scroll = new JScrollPane(container);
         scroll.setBorder(null);
@@ -399,50 +391,44 @@ public class ConversationSidebar extends JPanel {
         listContainer.setOpaque(false);
 
         // 1. Bạn bè trực tuyến (Online Friends)
-        lblFriendsOnlineHeader = new JLabel("BẠN BÈ TRỰC TUYẾN (0)");
+        lblFriendsOnlineHeader = new JLabel("BẠN BÈ TRỰC TUYẾN — 0");
         lblFriendsOnlineHeader.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblFriendsOnlineHeader.setForeground(ThemeManager.SUCCESS);
-        lblFriendsOnlineHeader.setBorder(BorderFactory.createEmptyBorder(6, 4, 4, 4));
-        lblFriendsOnlineHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblFriendsOnlineHeader.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
         listContainer.add(lblFriendsOnlineHeader);
 
         friendsOnlineList = new JList<>(friendsOnlineModel);
         styleList(friendsOnlineList);
-        friendsOnlineList.setFixedCellHeight(46);
         friendsOnlineList.setCellRenderer(new FriendUserRenderer(true, true));
         attachFriendListListeners(friendsOnlineList, true, true);
         listContainer.add(friendsOnlineList);
 
-        listContainer.add(Box.createVerticalStrut(8));
+        listContainer.add(Box.createVerticalStrut(10));
 
         // 2. Bạn bè ngoại tuyến (Offline Friends)
-        lblFriendsOfflineHeader = new JLabel("BẠN BÈ NGOẠI TUYẾN (0)");
+        lblFriendsOfflineHeader = new JLabel("BẠN BÈ NGOẠI TUYẾN — 0");
         lblFriendsOfflineHeader.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblFriendsOfflineHeader.setForeground(ThemeManager.TEXT_MUTED);
-        lblFriendsOfflineHeader.setBorder(BorderFactory.createEmptyBorder(6, 4, 4, 4));
-        lblFriendsOfflineHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblFriendsOfflineHeader.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
         listContainer.add(lblFriendsOfflineHeader);
 
         friendsOfflineList = new JList<>(friendsOfflineModel);
         styleList(friendsOfflineList);
-        friendsOfflineList.setFixedCellHeight(46);
         friendsOfflineList.setCellRenderer(new FriendUserRenderer(true, false));
         attachFriendListListeners(friendsOfflineList, true, false);
         listContainer.add(friendsOfflineList);
 
-        listContainer.add(Box.createVerticalStrut(8));
+        listContainer.add(Box.createVerticalStrut(10));
 
         // 3. Người dùng khác trong mạng đang Online
-        lblOtherOnlineHeader = new JLabel("NGƯỜI DÙNG KHÁC ONLINE (0)");
+        lblOtherOnlineHeader = new JLabel("NGƯỜI DÙNG KHÁC TRỰC TUYẾN — 0");
         lblOtherOnlineHeader.setFont(new Font("Segoe UI", Font.BOLD, 10));
         lblOtherOnlineHeader.setForeground(ThemeManager.ACCENT_CYAN);
-        lblOtherOnlineHeader.setBorder(BorderFactory.createEmptyBorder(6, 4, 4, 4));
-        lblOtherOnlineHeader.setAlignmentX(Component.LEFT_ALIGNMENT);
+        lblOtherOnlineHeader.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 4));
         listContainer.add(lblOtherOnlineHeader);
 
         otherOnlineList = new JList<>(otherOnlineModel);
         styleList(otherOnlineList);
-        otherOnlineList.setFixedCellHeight(46);
         otherOnlineList.setCellRenderer(new FriendUserRenderer(false, true));
         attachFriendListListeners(otherOnlineList, false, true);
         listContainer.add(otherOnlineList);
@@ -451,7 +437,6 @@ public class ConversationSidebar extends JPanel {
         lblEmptyDmsHint.setFont(ThemeManager.FONT_SMALL);
         lblEmptyDmsHint.setForeground(new Color(0x64, 0x74, 0x8B));
         lblEmptyDmsHint.setBorder(BorderFactory.createEmptyBorder(8, 8, 4, 0));
-        lblEmptyDmsHint.setAlignmentX(Component.LEFT_ALIGNMENT);
         lblEmptyDmsHint.setVisible(false);
         listContainer.add(lblEmptyDmsHint);
 
@@ -531,11 +516,11 @@ public class ConversationSidebar extends JPanel {
     private JPanel createVoicePanel() {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setOpaque(false);
-        panel.setBorder(BorderFactory.createEmptyBorder(6, 6, 6, 6));
+        panel.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        header.setBorder(BorderFactory.createEmptyBorder(2, 4, 8, 4));
+        header.setBorder(BorderFactory.createEmptyBorder(0, 4, 8, 4));
 
         JLabel title = new JLabel("PHÒNG THOẠI VOICE RTC");
         title.setFont(new Font("Segoe UI", Font.BOLD, 10));
@@ -543,12 +528,16 @@ public class ConversationSidebar extends JPanel {
         header.add(title, BorderLayout.WEST);
         panel.add(header, BorderLayout.NORTH);
 
-        standaloneVoiceContainer = new JPanel();
-        standaloneVoiceContainer.setLayout(new BoxLayout(standaloneVoiceContainer, BoxLayout.Y_AXIS));
-        standaloneVoiceContainer.setOpaque(false);
-        standaloneVoiceContainer.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JList<String> standaloneVoiceList = new JList<>(voiceChannelsModel);
+        styleList(standaloneVoiceList);
+        standaloneVoiceList.setCellRenderer(new VoiceChannelRenderer());
+        standaloneVoiceList.addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting() && standaloneVoiceList.getSelectedValue() != null) {
+                if (listener != null) listener.onVoiceRoomSelected(standaloneVoiceList.getSelectedValue());
+            }
+        });
 
-        JScrollPane scroll = new JScrollPane(standaloneVoiceContainer);
+        JScrollPane scroll = new JScrollPane(standaloneVoiceList);
         scroll.setBorder(null);
         scroll.setOpaque(false);
         scroll.getViewport().setOpaque(false);
@@ -563,7 +552,6 @@ public class ConversationSidebar extends JPanel {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setOpaque(false);
         list.setFixedCellHeight(34);
-        list.setAlignmentX(Component.LEFT_ALIGNMENT);
     }
 
     private JPanel createBottomPanel() {
@@ -690,14 +678,12 @@ public class ConversationSidebar extends JPanel {
 
     public void setVoiceState(boolean connected, String roomName) {
         this.isVoiceConnected = connected;
-        this.currentVoiceRoom = connected ? roomName : null;
         if (voiceDockPanel != null) {
             voiceDockPanel.setVisible(connected);
             if (connected && roomName != null) {
                 lblVoiceRoomName.setText(roomName);
             }
         }
-        rebuildVoiceRoomsUI();
         repaint();
     }
 
@@ -731,15 +717,14 @@ public class ConversationSidebar extends JPanel {
             }
         }
         if (voiceChannelsModel.isEmpty()) {
-            voiceChannelsModel.addElement("Voice_Lounge");
             voiceChannelsModel.addElement("Phòng Thảo Luận 01");
+            voiceChannelsModel.addElement("Báo Cáo Nhóm (RTC)");
         }
         if (textChannelsModel.isEmpty()) {
-            textChannelsModel.addElement("General");
             textChannelsModel.addElement("Lobby");
-            textChannelsModel.addElement("MMT_NHOM05");
+            textChannelsModel.addElement("ThaoLuan_MMT");
+            textChannelsModel.addElement("ChiaSe_TaiLieu");
         }
-        rebuildVoiceRoomsUI();
     }
 
     public void updateOnlineUsers(List<String> users) {
@@ -777,13 +762,13 @@ public class ConversationSidebar extends JPanel {
         }
 
         if (lblFriendsOnlineHeader != null) {
-            lblFriendsOnlineHeader.setText("BẠN BÈ TRỰC TUYẾN (" + friendsOnlineModel.size() + ")");
+            lblFriendsOnlineHeader.setText("BẠN BÈ TRỰC TUYẾN — " + friendsOnlineModel.size());
         }
         if (lblFriendsOfflineHeader != null) {
-            lblFriendsOfflineHeader.setText("BẠN BÈ NGOẠI TUYẾN (" + friendsOfflineModel.size() + ")");
+            lblFriendsOfflineHeader.setText("BẠN BÈ NGOẠI TUYẾN — " + friendsOfflineModel.size());
         }
         if (lblOtherOnlineHeader != null) {
-            lblOtherOnlineHeader.setText("NGƯỜI DÙNG KHÁC ONLINE (" + otherOnlineModel.size() + ")");
+            lblOtherOnlineHeader.setText("NGƯỜI DÙNG KHÁC TRỰC TUYẾN — " + otherOnlineModel.size());
         }
 
         boolean isEmpty = friendsOnlineModel.isEmpty() && friendsOfflineModel.isEmpty() && otherOnlineModel.isEmpty();
@@ -853,290 +838,15 @@ public class ConversationSidebar extends JPanel {
         }
     }
 
-    public void setVoiceParticipants(String roomName, List<String> members) {
-        if (roomName != null && members != null) {
-            voiceParticipants.put(roomName.toLowerCase(), new ArrayList<>(members));
-            rebuildVoiceRoomsUI();
-        }
-    }
-
-    public List<String> getVoiceParticipants(String roomName) {
-        if (roomName == null) return Collections.emptyList();
-        List<String> list = voiceParticipants.get(roomName.toLowerCase());
-        if (list != null) return list;
-        for (Map.Entry<String, List<String>> e : voiceParticipants.entrySet()) {
-            if (e.getKey().contains(roomName.toLowerCase()) || roomName.toLowerCase().contains(e.getKey())) {
-                return e.getValue();
-            }
-        }
-        return Collections.emptyList();
-    }
-
-    public void incrementUnreadCount(String username) {
-        if (username != null && !username.trim().isEmpty()) {
-            String key = username.trim().toLowerCase();
-            unreadCounts.put(key, unreadCounts.getOrDefault(key, 0) + 1);
-            updateUnreadBadges();
-            repaintFriendLists();
-        }
-    }
-
-    public void clearUnreadCount(String username) {
-        if (username != null) {
-            unreadCounts.remove(username.trim().toLowerCase());
-            updateUnreadBadges();
-            repaintFriendLists();
-        }
-    }
-
-    public int getUnreadCount(String username) {
-        if (username == null) return 0;
-        return unreadCounts.getOrDefault(username.trim().toLowerCase(), 0);
-    }
-
-    public int getTotalUnreadCount() {
-        int sum = 0;
-        for (int c : unreadCounts.values()) sum += c;
-        return sum;
-    }
-
-    private void updateUnreadBadges() {
-        int total = getTotalUnreadCount();
-        if (btnTabDms != null) {
-            if (total > 0) {
-                btnTabDms.setText("Bạn bè (" + (total > 99 ? "99+" : total) + ")");
-            } else {
-                btnTabDms.setText("Bạn bè");
-            }
-            btnTabDms.repaint();
-        }
-    }
-
-    private void repaintFriendLists() {
-        if (friendsOnlineList != null) friendsOnlineList.repaint();
-        if (friendsOfflineList != null) friendsOfflineList.repaint();
-        if (otherOnlineList != null) otherOnlineList.repaint();
-    }
-
     public void setSpeakingUsers(Set<String> speakers) {
         this.speakingUsers.clear();
-        if (speakers != null) {
-            for (String s : speakers) {
-                this.speakingUsers.add(s.toLowerCase());
-            }
-        }
-        rebuildVoiceRoomsUI();
+        this.speakingUsers.addAll(speakers);
+        voiceChannelsList.repaint();
     }
 
-    public void rebuildVoiceRoomsUI() {
-        buildVoiceContainer(roomsVoiceContainer);
-        buildVoiceContainer(standaloneVoiceContainer);
-        revalidate();
-        repaint();
-    }
-
-    private void buildVoiceContainer(JPanel target) {
-        if (target == null) return;
-        target.removeAll();
-
-        List<String> rooms = new ArrayList<>();
-        for (int i = 0; i < voiceChannelsModel.size(); i++) {
-            rooms.add(voiceChannelsModel.get(i));
-        }
-        if (rooms.isEmpty()) {
-            rooms.add("Voice_Lounge");
-        }
-
-        for (String roomName : rooms) {
-            JPanel roomCard = new JPanel();
-            roomCard.setLayout(new BoxLayout(roomCard, BoxLayout.Y_AXIS));
-            roomCard.setOpaque(false);
-            roomCard.setAlignmentX(Component.LEFT_ALIGNMENT);
-            roomCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, Integer.MAX_VALUE));
-            roomCard.setBorder(BorderFactory.createEmptyBorder(1, 0, 2, 0));
-
-            boolean isCurrentActiveVoice = isVoiceConnected && (currentVoiceRoom != null && currentVoiceRoom.equalsIgnoreCase(roomName));
-            List<String> members = getVoiceParticipants(roomName);
-            boolean hasSpeakingMember = false;
-            for (String m : members) {
-                if (speakingUsers.contains(m.toLowerCase())) {
-                    hasSpeakingMember = true;
-                    break;
-                }
-            }
-
-            // --- Voice Channel Header Row ---
-            JPanel headerRow = new JPanel(new BorderLayout(6, 0)) {
-                @Override
-                protected void paintComponent(Graphics g) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    boolean hover = Boolean.TRUE.equals(getClientProperty("hover"));
-
-                    if (isCurrentActiveVoice) {
-                        LinearGradientPaint gp = new LinearGradientPaint(
-                                0, 0, Math.max(getWidth(), 1), 0,
-                                new float[]{0.0f, 1.0f},
-                                new Color[]{new Color(0x0D, 0x48, 0x38, 230), new Color(0x08, 0x2E, 0x28, 245)}
-                        );
-                        g2.setPaint(gp);
-                        g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 8, 8);
-                        g2.setColor(new Color(0x34, 0xD3, 0x99, 160));
-                        g2.setStroke(new BasicStroke(1.2f));
-                        g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 8, 8);
-
-                        // Vertical emerald neon indicator
-                        g2.setColor(ThemeManager.SUCCESS);
-                        g2.fillRoundRect(2, 6, 3, getHeight() - 12, 2, 2);
-                    } else if (hover) {
-                        g2.setColor(new Color(255, 255, 255, 20));
-                        g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 8, 8);
-                    }
-                    g2.dispose();
-                    super.paintComponent(g);
-                }
-            };
-            headerRow.setOpaque(false);
-            headerRow.setPreferredSize(new Dimension(260, 34));
-            headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
-            headerRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-            headerRow.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 8));
-            headerRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-            headerRow.addMouseListener(new MouseAdapter() {
-                @Override public void mouseEntered(MouseEvent e) {
-                    headerRow.putClientProperty("hover", Boolean.TRUE);
-                    headerRow.repaint();
-                }
-                @Override public void mouseExited(MouseEvent e) {
-                    headerRow.putClientProperty("hover", Boolean.FALSE);
-                    headerRow.repaint();
-                }
-                @Override public void mouseClicked(MouseEvent e) {
-                    if (listener != null) listener.onVoiceRoomSelected(roomName);
-                }
-            });
-
-            JPanel hLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
-            hLeft.setOpaque(false);
-
-            Color waveColor = isCurrentActiveVoice ? Color.WHITE : (hasSpeakingMember ? ThemeManager.SUCCESS : ThemeManager.ACCENT_CYAN);
-            JLabel iconLoa = new JLabel(AppIcons.createVoiceWaveIcon(15, waveColor));
-            JLabel lblRoom = new JLabel(roomName);
-            lblRoom.setFont(new Font("Segoe UI", isCurrentActiveVoice ? Font.BOLD : Font.PLAIN, 12));
-            lblRoom.setForeground(isCurrentActiveVoice ? Color.WHITE : (hasSpeakingMember ? ThemeManager.SUCCESS : ThemeManager.TEXT_SECONDARY));
-
-            hLeft.add(iconLoa);
-            hLeft.add(lblRoom);
-            headerRow.add(hLeft, BorderLayout.CENTER);
-
-            JPanel hRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 5));
-            hRight.setOpaque(false);
-
-            if (hasSpeakingMember) {
-                JLabel speakingBadge = ThemeManager.createBadge("Đang nói", ThemeManager.SUCCESS, new Color(0x10, 0xB9, 0x81, 40));
-                speakingBadge.setIcon(AppIcons.createVoiceWaveIcon(11, ThemeManager.SUCCESS));
-                speakingBadge.setFont(new Font("Segoe UI", Font.BOLD, 9));
-                hRight.add(speakingBadge);
-            }
-            if (!members.isEmpty()) {
-                JLabel countBadge = ThemeManager.createBadge(String.valueOf(members.size()), ThemeManager.ACCENT_CYAN, new Color(0x00, 0xF2, 0xFE, 35));
-                countBadge.setFont(new Font("Segoe UI", Font.BOLD, 9));
-                hRight.add(countBadge);
-            }
-
-            headerRow.add(hRight, BorderLayout.EAST);
-            roomCard.add(headerRow);
-
-            // --- Sub-Members Panel (Showing people in voice) ---
-            if (!members.isEmpty()) {
-                JPanel membersPanel = new JPanel();
-                membersPanel.setLayout(new BoxLayout(membersPanel, BoxLayout.Y_AXIS));
-                membersPanel.setOpaque(false);
-                membersPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-                membersPanel.setBorder(BorderFactory.createEmptyBorder(2, 20, 4, 6));
-
-                for (String member : members) {
-                    boolean isSpeaking = speakingUsers.contains(member.toLowerCase());
-                    boolean isSelf = (currentUsername != null && member.equalsIgnoreCase(currentUsername));
-
-                    JPanel memberRow = new JPanel(new BorderLayout(6, 0)) {
-                        @Override
-                        protected void paintComponent(Graphics g) {
-                            if (Boolean.TRUE.equals(getClientProperty("hover"))) {
-                                Graphics2D g2 = (Graphics2D) g.create();
-                                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                                g2.setColor(new Color(255, 255, 255, 14));
-                                g2.fillRoundRect(2, 1, getWidth() - 4, getHeight() - 2, 6, 6);
-                                g2.dispose();
-                            }
-                            super.paintComponent(g);
-                        }
-                    };
-                    memberRow.setOpaque(false);
-                    memberRow.setPreferredSize(new Dimension(240, 28));
-                    memberRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-                    memberRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-                    memberRow.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
-                    memberRow.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-
-                    memberRow.addMouseListener(new MouseAdapter() {
-                        @Override public void mouseEntered(MouseEvent e) {
-                            memberRow.putClientProperty("hover", Boolean.TRUE);
-                            memberRow.repaint();
-                        }
-                        @Override public void mouseExited(MouseEvent e) {
-                            memberRow.putClientProperty("hover", Boolean.FALSE);
-                            memberRow.repaint();
-                        }
-                        @Override public void mouseClicked(MouseEvent e) {
-                            if (listener != null) listener.onUserSelected(member);
-                        }
-                    });
-
-                    JPanel mLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 2));
-                    mLeft.setOpaque(false);
-
-                    JLabel mAvatar = new JLabel(ThemeManager.createAvatarIcon(member, 20, true, isSpeaking));
-                    JLabel mName = new JLabel("@" + member);
-                    mName.setFont(new Font("Segoe UI", isSpeaking ? Font.BOLD : Font.PLAIN, 11));
-                    mName.setForeground(isSpeaking ? ThemeManager.SUCCESS : (isSelf ? ThemeManager.ACCENT_ELECTRIC_CYAN : ThemeManager.TEXT_SECONDARY));
-                    mName.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
-
-                    mLeft.add(mAvatar);
-                    mLeft.add(mName);
-                    if (isSelf) {
-                        mLeft.add(ThemeManager.createBadge("BẠN", ThemeManager.ACCENT_ELECTRIC_CYAN, new Color(0x00, 0xF2, 0xFE, 40)));
-                    }
-                    memberRow.add(mLeft, BorderLayout.CENTER);
-
-                    JPanel mRight = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 3));
-                    mRight.setOpaque(false);
-                    if (isSpeaking) {
-                        JLabel lblSpeaking = ThemeManager.createBadge("Đang nói", ThemeManager.SUCCESS, new Color(0x10, 0xB9, 0x81, 40));
-                        lblSpeaking.setIcon(AppIcons.createVoiceWaveIcon(11, ThemeManager.SUCCESS));
-                        lblSpeaking.setFont(new Font("Segoe UI", Font.BOLD, 9));
-                        mRight.add(lblSpeaking);
-                    } else {
-                        JLabel lblMic = new JLabel(AppIcons.createMicIcon(12, ThemeManager.TEXT_MUTED, false));
-                        mRight.add(lblMic);
-                    }
-                    memberRow.add(mRight, BorderLayout.EAST);
-
-                    membersPanel.add(memberRow);
-                }
-                roomCard.add(membersPanel);
-            }
-
-            target.add(roomCard);
-        }
-        target.revalidate();
-        target.repaint();
-    }
-
-    private static class TextChannelRenderer implements ListCellRenderer<String> {
+    private static class TextChannelRenderer extends DefaultListCellRenderer {
         @Override
-        public Component getListCellRendererComponent(JList<? extends String> list, String value, int index, boolean isSelected, boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JPanel p = new JPanel(new BorderLayout(8, 0)) {
                 @Override
                 protected void paintComponent(Graphics g) {
@@ -1149,55 +859,50 @@ public class ConversationSidebar extends JPanel {
                                 new Color[]{new Color(0x0E, 0x38, 0x44, 230), new Color(0x08, 0x24, 0x2C, 245)}
                         );
                         g2.setPaint(gp);
-                        g2.fillRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 8, 8);
+                        g2.fillRoundRect(4, 2, getWidth() - 8, getHeight() - 4, 10, 10);
                         g2.setColor(new Color(0x00, 0xF2, 0xFE, 160));
                         g2.setStroke(new BasicStroke(1.2f));
-                        g2.drawRoundRect(2, 2, getWidth() - 4, getHeight() - 4, 8, 8);
+                        g2.drawRoundRect(4, 2, getWidth() - 8, getHeight() - 4, 10, 10);
 
                         // Vertical neon indicator bar on left edge
                         g2.setColor(ThemeManager.ACCENT_ELECTRIC_CYAN);
-                        g2.fillRoundRect(2, 6, 3, getHeight() - 12, 2, 2);
+                        g2.fillRoundRect(4, 7, 3, getHeight() - 14, 2, 2);
                         g2.dispose();
                     }
                     super.paintComponent(g);
                 }
             };
             p.setOpaque(false);
-            p.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 8));
+            p.setBorder(BorderFactory.createEmptyBorder(2, 10, 2, 10));
 
-            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 4));
+            JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
             left.setOpaque(false);
 
             JLabel icon = new JLabel("#");
             icon.setFont(new Font("Segoe UI", Font.BOLD, 14));
             icon.setForeground(isSelected ? ThemeManager.ACCENT_ELECTRIC_CYAN : ThemeManager.TEXT_MUTED);
 
-            String channelName = (value != null) ? value : "";
-            JLabel label = new JLabel(channelName);
+            JLabel label = new JLabel(value.toString());
             label.setFont(isSelected ? ThemeManager.FONT_BODY_BOLD : ThemeManager.FONT_BODY);
             label.setForeground(isSelected ? Color.WHITE : ThemeManager.TEXT_SECONDARY);
-            label.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
 
             left.add(icon);
             left.add(label);
-            p.add(left, BorderLayout.CENTER);
+            p.add(left, BorderLayout.WEST);
 
-            if ("Lobby".equalsIgnoreCase(channelName)) {
+            if ("Lobby".equalsIgnoreCase(value.toString())) {
                 JLabel liveBadge = ThemeManager.createBadge("LIVE", ThemeManager.SUCCESS, new Color(0x10, 0xB9, 0x81, 35));
                 liveBadge.setFont(new Font("Segoe UI", Font.BOLD, 9));
                 p.add(liveBadge, BorderLayout.EAST);
             }
 
-            int w = (list != null && list.getWidth() > 0) ? list.getWidth() : 260;
-            p.setSize(w, 34);
-            p.doLayout();
             return p;
         }
     }
 
-    private class VoiceChannelRenderer implements ListCellRenderer<String> {
+    private class VoiceChannelRenderer extends DefaultListCellRenderer {
         @Override
-        public Component getListCellRendererComponent(JList<? extends String> list, String value, int index, boolean isSelected, boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JPanel p = new JPanel(new BorderLayout(8, 0)) {
                 @Override
                 protected void paintComponent(Graphics g) {
@@ -1229,26 +934,21 @@ public class ConversationSidebar extends JPanel {
             JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
             left.setOpaque(false);
 
-            String roomStr = (value != null) ? value : "";
             JLabel icon = new JLabel(AppIcons.createVoiceWaveIcon(15, isSelected ? Color.WHITE : ThemeManager.SUCCESS));
-            JLabel label = new JLabel(roomStr);
+            JLabel label = new JLabel(value.toString());
             label.setFont(isSelected ? ThemeManager.FONT_BODY_BOLD : ThemeManager.FONT_BODY);
             label.setForeground(isSelected ? Color.WHITE : ThemeManager.TEXT_SECONDARY);
-            label.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 8));
 
             left.add(icon);
             left.add(label);
-            p.add(left, BorderLayout.CENTER);
+            p.add(left, BorderLayout.WEST);
 
-            if (roomStr.toLowerCase().contains("amnhac") || roomStr.toLowerCase().contains("voice")) {
+            if (value.toString().toLowerCase().contains("amnhac") || value.toString().toLowerCase().contains("voice")) {
                 JLabel audioBadge = ThemeManager.createBadge("16kHz", ThemeManager.ACCENT_CYAN, new Color(0x00, 0xF2, 0xFE, 30));
                 audioBadge.setFont(new Font("Segoe UI", Font.BOLD, 9));
                 p.add(audioBadge, BorderLayout.EAST);
             }
 
-            int w = (list != null && list.getWidth() > 0) ? list.getWidth() : 260;
-            p.setSize(w, 34);
-            p.doLayout();
             return p;
         }
     }
@@ -1279,12 +979,11 @@ public class ConversationSidebar extends JPanel {
             p.setOpaque(false);
             p.setBorder(BorderFactory.createEmptyBorder(0, 6, 0, 6));
 
-            String user = value != null ? value.toString() : "";
+            String user = value.toString();
             JLabel avatar = new JLabel(ThemeManager.createAvatarIcon(user, 20, true));
             JLabel label = new JLabel("@" + user);
             label.setFont(isSelected ? ThemeManager.FONT_BODY_BOLD : ThemeManager.FONT_BODY);
             label.setForeground(isSelected ? Color.WHITE : ThemeManager.getUserColor(user));
-            label.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
 
             p.add(avatar);
             p.add(label);
@@ -1292,7 +991,7 @@ public class ConversationSidebar extends JPanel {
         }
     }
 
-    private class FriendUserRenderer implements ListCellRenderer<String> {
+    private static class FriendUserRenderer extends DefaultListCellRenderer {
         private final boolean isFriend;
         private final boolean isOnline;
 
@@ -1302,7 +1001,7 @@ public class ConversationSidebar extends JPanel {
         }
 
         @Override
-        public Component getListCellRendererComponent(JList<? extends String> list, String value, int index, boolean isSelected, boolean cellHasFocus) {
+        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             JPanel p = new JPanel(new BorderLayout(8, 0)) {
                 @Override
                 protected void paintComponent(Graphics g) {
@@ -1324,25 +1023,21 @@ public class ConversationSidebar extends JPanel {
                 }
             };
             p.setOpaque(false);
-            p.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 8));
+            p.setBorder(BorderFactory.createEmptyBorder(2, 6, 2, 6));
 
-            String user = (value != null) ? value : "";
-            int unread = getUnreadCount(user);
-            JLabel avatar = new JLabel(ThemeManager.createAvatarWithChatBubble(user, 28, isOnline, false, unread));
+            String user = value.toString();
+            JLabel avatar = new JLabel(ThemeManager.createAvatarIcon(user, 26, isOnline));
 
             JPanel center = new JPanel();
             center.setLayout(new BoxLayout(center, BoxLayout.Y_AXIS));
             center.setOpaque(false);
-            center.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JPanel rowTop = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
             rowTop.setOpaque(false);
-            rowTop.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             JLabel label = new JLabel("@" + user);
             label.setFont(isSelected ? ThemeManager.FONT_BODY_BOLD : ThemeManager.FONT_BODY);
             label.setForeground(isOnline ? Color.WHITE : new Color(0x94, 0xA3, 0xB8));
-            label.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 6));
             rowTop.add(label);
 
             if (isFriend) {
@@ -1352,27 +1047,12 @@ public class ConversationSidebar extends JPanel {
             JLabel statusLabel = new JLabel(isOnline ? "● Trực tuyến" : "○ Ngoại tuyến");
             statusLabel.setFont(new Font("Segoe UI", Font.PLAIN, 10));
             statusLabel.setForeground(isOnline ? ThemeManager.SUCCESS : new Color(0x64, 0x74, 0x8B));
-            statusLabel.setBorder(BorderFactory.createEmptyBorder(1, 4, 0, 0));
-            statusLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
             center.add(rowTop);
             center.add(statusLabel);
 
             p.add(avatar, BorderLayout.WEST);
             p.add(center, BorderLayout.CENTER);
-
-            if (unread > 0) {
-                JPanel unreadCol = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 8));
-                unreadCol.setOpaque(false);
-                JLabel badge = ThemeManager.createBadge(unread > 99 ? "99+" : String.valueOf(unread), Color.WHITE, new Color(0xEF, 0x44, 0x44));
-                badge.setFont(new Font("Segoe UI", Font.BOLD, 10));
-                unreadCol.add(badge);
-                p.add(unreadCol, BorderLayout.EAST);
-            }
-
-            int w = (list != null && list.getWidth() > 0) ? list.getWidth() : 260;
-            p.setSize(w, 46);
-            p.doLayout();
             return p;
         }
     }

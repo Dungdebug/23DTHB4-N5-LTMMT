@@ -189,7 +189,7 @@ public class AuthenticationPanel extends JPanel {
                 g2.dispose();
             }
         };
-        splitContainer.setPreferredSize(new Dimension(840, 480));
+        splitContainer.setPreferredSize(new Dimension(860, 500));
         splitContainer.setOpaque(false);
 
         // =====================================================================
@@ -267,11 +267,11 @@ public class AuthenticationPanel extends JPanel {
         lblSub.setForeground(ThemeManager.ACCENT_CYAN);
         lblSub.setAlignmentX(0.0f);
 
-        JLabel lblDesc = new JLabel("<html>Giao tiếp nhóm phân tán, bảo mật AES-128 và truyền tệp tới 20 GiB qua ZeroTier / LAN.</html>");
+        JLabel lblDesc = new JLabel("<html>Giao tiếp nhóm phân tán, bảo mật AES-128-GCM<br/>và truyền tệp tới 20 GiB qua ZeroTier / LAN.</html>");
         lblDesc.setFont(ThemeManager.FONT_SMALL);
         lblDesc.setForeground(ThemeManager.TEXT_MUTED);
         lblDesc.setAlignmentX(0.0f);
-        lblDesc.setMaximumSize(new Dimension(380, 48));
+        lblDesc.setMaximumSize(new Dimension(380, 52));
 
         leftBrandCard.add(brandIcon);
         leftBrandCard.add(Box.createVerticalStrut(10));
@@ -399,7 +399,7 @@ public class AuthenticationPanel extends JPanel {
 
         JPanel connRow = new JPanel(new GridLayout(1, 2, 8, 0));
         connRow.setOpaque(false);
-        connRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 46));
+        connRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
         connRow.setAlignmentX(0.0f);
 
         txtServerIp = new JTextField(defaultServerIp);
@@ -456,6 +456,8 @@ public class AuthenticationPanel extends JPanel {
 
         JPanel passwordWrapper = new JPanel(new BorderLayout(4, 0));
         passwordWrapper.setOpaque(false);
+        passwordWrapper.setPreferredSize(new Dimension(Integer.MAX_VALUE, 38));
+        passwordWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
         passwordWrapper.add(txtPassword, BorderLayout.CENTER);
 
         btnTogglePassword = new JButton("Hiện");
@@ -485,7 +487,8 @@ public class AuthenticationPanel extends JPanel {
         // 4. Action Buttons (Login / Register)
         btnLogin = ThemeManager.createGradientButton("Đăng Nhập Không Gian Làm Việc →", ThemeManager.ACCENT_PRIMARY, ThemeManager.ACCENT_ELECTRIC_CYAN, Color.WHITE);
         btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnLogin.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
+        btnLogin.setPreferredSize(new Dimension(Integer.MAX_VALUE, 42));
+        btnLogin.setMaximumSize(new Dimension(Integer.MAX_VALUE, 42));
         btnLogin.setAlignmentX(0.0f);
         btnLogin.addActionListener(e -> triggerLogin());
         rightFormCard.add(btnLogin);
@@ -602,7 +605,7 @@ public class AuthenticationPanel extends JPanel {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
         p.setOpaque(false);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
         p.setAlignmentX(0.0f);
 
         JLabel lbl = new JLabel(label);
@@ -613,7 +616,7 @@ public class AuthenticationPanel extends JPanel {
         field.setAlignmentX(0.0f);
 
         p.add(lbl);
-        p.add(Box.createVerticalStrut(2));
+        p.add(Box.createVerticalStrut(4));
         p.add(field);
         return p;
     }
@@ -622,7 +625,7 @@ public class AuthenticationPanel extends JPanel {
         JPanel p = new JPanel();
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
         p.setOpaque(false);
-        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+        p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 58));
         p.setAlignmentX(0.0f);
 
         JLabel lbl = new JLabel(label);
@@ -633,7 +636,7 @@ public class AuthenticationPanel extends JPanel {
         field.setAlignmentX(0.0f);
 
         p.add(lbl);
-        p.add(Box.createVerticalStrut(2));
+        p.add(Box.createVerticalStrut(4));
         p.add(field);
         return p;
     }
@@ -643,13 +646,14 @@ public class AuthenticationPanel extends JPanel {
         f.setBackground(ThemeManager.BG_INPUT);
         f.setForeground(ThemeManager.TEXT_PRIMARY);
         f.setCaretColor(Color.WHITE);
-        f.putClientProperty("Component.arc", 12);
+        f.putClientProperty("Component.arc", 10);
         f.putClientProperty("Component.focusWidth", 2);
         f.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(ThemeManager.BORDER_COLOR, 1),
                 BorderFactory.createEmptyBorder(6, 12, 6, 12)
         ));
-        f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+        f.setPreferredSize(new Dimension(Integer.MAX_VALUE, 38));
+        f.setMaximumSize(new Dimension(Integer.MAX_VALUE, 38));
     }
 
     public void setStatus(String message, StatusType type) {

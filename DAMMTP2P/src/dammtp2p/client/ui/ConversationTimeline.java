@@ -372,7 +372,10 @@ public class ConversationTimeline extends JPanel {
     }
 
     public void scrollToBottom() {
-        SwingUtilities.invokeLater(this::scrollToBottomDirectly);
+        SwingUtilities.invokeLater(() -> {
+            messagesListPanel.revalidate();
+            SwingUtilities.invokeLater(this::scrollToBottomDirectly);
+        });
     }
 
     public void scrollToBottomDirectly() {

@@ -7,6 +7,7 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
+import java.awt.Desktop;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
@@ -17,6 +18,10 @@ import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.LinearGradientPaint;
 import java.awt.RenderingHints;
+import java.awt.Toolkit;
+import java.awt.datatransfer.StringSelection;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.util.List;
 import javax.swing.BorderFactory;
@@ -26,7 +31,9 @@ import javax.swing.JComboBox;
 import javax.swing.JDialog;
 import javax.swing.JFileChooser;
 import javax.swing.JLabel;
+import javax.swing.JMenuItem;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -199,17 +206,65 @@ public class TransferCenterDialog extends JDialog {
         JPanel panel = new JPanel(new BorderLayout(0, 6));
         panel.setOpaque(false);
 
+        JPanel headerRow = new JPanel(new BorderLayout());
+        headerRow.setOpaque(false);
+
         JLabel lblHeader = new JLabel("DANH SÁCH CÁC PHIÊN TRUYỀN TỆP (TCP PORT 8889)");
         lblHeader.setFont(ThemeManager.FONT_SMALL_BOLD);
         lblHeader.setForeground(ThemeManager.TEXT_MUTED);
-        panel.add(lblHeader, BorderLayout.NORTH);
+
+        JButton btnOpenFolder = new JButton("Mở Thư Mục Nhận Tệp", AppIcons.createFileIcon(14, ThemeManager.ACCENT_CYAN));
+        btnOpenFolder.setFont(ThemeManager.FONT_SMALL);
+        btnOpenFolder.setForeground(ThemeManager.ACCENT_CYAN);
+        btnOpenFolder.setContentAreaFilled(false);
+        btnOpenFolder.setBorderPainted(false);
+        btnOpenFolder.setFocusPainted(false);
+        btnOpenFolder.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btnOpenFolder.addActionListener(e -> {
+            try {
+                File dl = new File("downloads");
+                if (!dl.exists()) dl.mkdirs();
+                Desktop.getDesktop().open(dl);
+            } catch (Exception ex) {
+                // Ignore if not supported on platform
+            }
+        });
+
+        headerRow.add(lblHeader, BorderLayout.WEST);
+        headerRow.add(btnOpenFolder, BorderLayout.EAST);
+        panel.add(headerRow, BorderLayout.NORTH);
 
         String[] cols = {"Mã Phiên", "Tên Tệp", "Dung Lượng", "Đối Tác", "Tiến Trình", "Trạng Thái"};
         tableModel = new DefaultTableModel(cols, 0) {
             @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
-        transfersTable = new JTable(tableModel);
+        transfersTable = new JTable(tableModel) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                if (getRowCount() == 0) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setFont(ThemeManager.FONT_BODY);
+                    g2.setColor(ThemeManager.TEXT_MUTED);
+                    String emptyMsg = "Chưa có phiên truyền tệp nào trong phiên làm việc này.";
+                    String subMsg = "Kéo thả tệp vào đây hoặc bấm 'Chọn Tệp...' bên dưới để bắt đầu truyền.";
+                    FontMetrics fm = g2.getFontMetrics();
+                    int x1 = (getWidth() - fm.stringWidth(emptyMsg)) / 2;
+                    int y1 = getHeight() / 2 - 10;
+                    g2.drawString(emptyMsg, Math.max(10, x1), y1);
+
+                    g2.setFont(ThemeManager.FONT_SMALL);
+                    fm = g2.getFontMetrics();
+                    int x2 = (getWidth() - fm.stringWidth(subMsg)) / 2;
+                    int y2 = y1 + 22;
+                    g2.setColor(new Color(0x64, 0x74, 0x8B));
+                    g2.drawString(subMsg, Math.max(10, x2), y2);
+                    g2.dispose();
+                }
+            }
+        };
         transfersTable.setBackground(ThemeManager.BG_CARD);
         transfersTable.setForeground(ThemeManager.TEXT_PRIMARY);
         transfersTable.setGridColor(ThemeManager.BORDER_SUBTLE);
@@ -252,6 +307,61 @@ public class TransferCenterDialog extends JDialog {
                     }
                 }
                 return c;
+            }
+        });
+
+        // Context Menu on row click
+        JPopupMenu popup = new JPopupMenu();
+        JMenuItem itemOpenFolderPopup = new JMenuItem("Mở thư mục tải về (Downloads)", AppIcons.createFileIcon(14, ThemeManager.ACCENT_CYAN));
+        itemOpenFolderPopup.addActionListener(e -> {
+            try {
+                File dl = new File("downloads");
+                if (!dl.exists()) dl.mkdirs();
+                Desktop.getDesktop().open(dl);
+            } catch (Exception ex) {
+                // ignore
+            }
+        });
+        popup.add(itemOpenFolderPopup);
+
+        JMenuItem itemCopyId = new JMenuItem("Sao chép mã phiên (Transfer ID)");
+        itemCopyId.addActionListener(e -> {
+            int row = transfersTable.getSelectedRow();
+            if (row >= 0) {
+                String id = (String) tableModel.getValueAt(row, 0);
+                Toolkit.getDefaultToolkit().getSystemClipboard().setContents(new StringSelection(id), null);
+            }
+        });
+        popup.add(itemCopyId);
+
+        JMenuItem itemCancel = new JMenuItem("Hủy phiên truyền này", AppIcons.createStatusDot(8, ThemeManager.DANGER));
+        itemCancel.addActionListener(e -> {
+            int row = transfersTable.getSelectedRow();
+            if (row >= 0 && callback != null) {
+                String id = (String) tableModel.getValueAt(row, 0);
+                callback.onCancelTransfer(id);
+                tableModel.setValueAt("Đã hủy ✕", row, 5);
+            }
+        });
+        popup.add(itemCancel);
+
+        transfersTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                maybeShowPopup(e);
+            }
+            @Override
+            public void mouseReleased(MouseEvent e) {
+                maybeShowPopup(e);
+            }
+            private void maybeShowPopup(MouseEvent e) {
+                if (e.isPopupTrigger()) {
+                    int row = transfersTable.rowAtPoint(e.getPoint());
+                    if (row >= 0 && row < transfersTable.getRowCount()) {
+                        transfersTable.setRowSelectionInterval(row, row);
+                    }
+                    popup.show(e.getComponent(), e.getX(), e.getY());
+                }
             }
         });
 
