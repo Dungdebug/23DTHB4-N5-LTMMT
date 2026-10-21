@@ -27,11 +27,13 @@ if %ERRORLEVEL% NEQ 0 (
 del sources.txt 2>nul
 
 rem 3. Dong goi thanh file JAR
-if exist "C:\Program Files\Java\jdk-26.0.2.1\bin\jar.exe" (
-    "C:\Program Files\Java\jdk-26.0.2.1\bin\jar.exe" cfm dist\DAMMTP2P.jar manifest.mf -C build\classes .
-) else (
-    jar cfm dist\DAMMTP2P.jar manifest.mf -C build\classes .
-)
+set "JAR_EXE=jar"
+if exist "%JAVA_HOME%\bin\jar.exe" set "JAR_EXE=%JAVA_HOME%\bin\jar.exe"
+if exist "C:\Program Files\Java\latest\bin\jar.exe" set "JAR_EXE=C:\Program Files\Java\latest\bin\jar.exe"
+if exist "C:\Program Files\Java\jdk-21.0.11\bin\jar.exe" set "JAR_EXE=C:\Program Files\Java\jdk-21.0.11\bin\jar.exe"
+if exist "C:\Program Files\Java\jdk-26.0.2.1\bin\jar.exe" set "JAR_EXE=C:\Program Files\Java\jdk-26.0.2.1\bin\jar.exe"
+
+"%JAR_EXE%" cfm dist\DAMMTP2P.jar manifest.mf -C build\classes .
 
 if %ERRORLEVEL% EQU 0 (
     echo [THANH CONG] Da tao xong dist\DAMMTP2P.jar!
