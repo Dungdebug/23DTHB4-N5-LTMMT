@@ -170,19 +170,20 @@ public final class ThemeManager {
             UIManager.put("SplitPane.dividerSize", 6);
             return;
         } catch (Throwable t) {
-            // FlatLaf not found or failed, fallback to Nimbus or System
+            // FlatLaf not found or failed, fallback to System Look and Feel
         }
 
         try {
-            for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
-                if ("Nimbus".equals(info.getName())) {
-                    UIManager.setLookAndFeel(info.getClassName());
-                    break;
-                }
-            }
+            // Prefer System Look and Feel over Nimbus to preserve full transparency support on custom text areas
+            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
         } catch (Exception ex) {
             try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+                for (UIManager.LookAndFeelInfo info : UIManager.getInstalledLookAndFeels()) {
+                    if ("Nimbus".equals(info.getName())) {
+                        UIManager.setLookAndFeel(info.getClassName());
+                        break;
+                    }
+                }
             } catch (Exception ignored) {
             }
         }
