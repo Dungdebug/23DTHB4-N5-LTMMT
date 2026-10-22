@@ -12,6 +12,7 @@ echo ===========================================================================
 
 if not exist "build\classes" mkdir "build\classes"
 if not exist "dist\lib" mkdir "dist\lib"
+if exist "lib\flatlaf-3.5.4.jar" copy /y "lib\flatlaf-3.5.4.jar" "dist\lib\flatlaf-3.5.4.jar" >nul
 
 rem 1. Tao danh sach file nguon .java
 dir /s /b src\*.java > sources.txt
