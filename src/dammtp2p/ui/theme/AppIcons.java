@@ -978,4 +978,3 @@ public final class AppIcons {
     }
 }
 
-
